@@ -8,6 +8,7 @@ import os
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_FILE = os.path.join(BASE_DIR, "data", "tefas_veri.json")
 REPORT_FILE = os.path.join(BASE_DIR, "docs", "index.html")
+KARAR_FILE = os.path.join(BASE_DIR, "docs", "karar.html")
 
 SIRKET_SIRASI = [
     "Ziraat Portföy", "İş Portföy", "Ak Portföy", "Garanti BBVA Portföy",
@@ -220,6 +221,10 @@ def render_html(data, rows):
 <body>
   <h1>TEFAS Para Piyasası Fonları — Firma Bazlı Günlük Getiri Raporu</h1>
   <div class="subtitle">{n_sirket} kurucu firma · {n_funds} fon (risk 1/7 veya 2/7) · Son güncelleme: {son_tarih}</div>
+
+  <div style="margin-bottom:20px">
+    <a href="karar.html" class="btn" style="text-decoration:none; display:inline-block;">Yatırım Önerisi (AI Analiz)</a>
+  </div>
 
   <div class="toc">
     {''.join(f'<a href="#{s.replace(" ", "-")}">{s}</a>' for s in ordered_sirketler)}
@@ -543,6 +548,217 @@ def render_html(data, rows):
     return html
 
 
+def render_karar_html(rows):
+    funds_json = json.dumps([
+        {"kod": r["kod"], "ad": r["ad"], "sirket": r["sirket"], "risk": r["risk"], "hist": r["hist"]}
+        for r in rows
+    ], ensure_ascii=False)
+
+    html = f"""<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Yatırım Önerisi (AI Analiz) - TEFAS Para Piyasası Fonları</title>
+<style>
+  :root {{
+    --bg: #0f1420; --card: #171d2b; --border: #2a3243; --text: #e6e9ef;
+    --muted: #8b93a7; --pos: #3ddc84; --neg: #ff5c72; --accent: #4f8cff; --warn: #f5a623;
+  }}
+  * {{ box-sizing: border-box; }}
+  body {{
+    margin: 0; padding: 32px; background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    max-width: 900px;
+  }}
+  h1 {{ font-size: 22px; margin: 0 0 4px 0; }}
+  .subtitle {{ color: var(--muted); font-size: 13px; margin-bottom: 20px; }}
+  a.back {{ color: var(--accent); font-size: 13px; text-decoration: none; }}
+  a.back:hover {{ text-decoration: underline; }}
+  .card {{
+    background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+    padding: 20px; margin-bottom: 20px;
+  }}
+  .card h2 {{ font-size: 15px; margin: 0 0 12px 0; font-weight: 700; }}
+  .warn-box {{
+    background: rgba(245,166,35,0.08); border: 1px solid var(--warn); border-radius: 10px;
+    padding: 14px 18px; margin-bottom: 20px; font-size: 13px; line-height: 1.6; color: var(--text);
+  }}
+  .warn-box b {{ color: var(--warn); }}
+  .btn {{
+    background: var(--accent); color: #fff; border: none; border-radius: 8px;
+    padding: 11px 20px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit;
+  }}
+  .btn:hover {{ opacity: .9; }}
+  .btn.secondary {{ background: transparent; border: 1px solid var(--border); color: var(--text); padding: 9px 16px; font-size: 13px; }}
+  .btn:disabled {{ opacity: .5; cursor: default; }}
+  .btn-row {{ display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }}
+  .muted {{ color: var(--muted); }}
+  .key-status {{ font-size: 12px; color: var(--muted); margin-top: 8px; }}
+  #result {{
+    margin-top: 16px; white-space: pre-wrap; line-height: 1.7; font-size: 14px;
+    display: none;
+  }}
+  #result.show {{ display: block; }}
+  .loading {{ color: var(--muted); font-size: 13px; margin-top: 16px; display: none; }}
+  .loading.show {{ display: block; }}
+  .err {{ color: var(--neg); font-size: 13px; margin-top: 16px; }}
+  .help {{ font-size: 12px; color: var(--muted); margin-top: 14px; line-height: 1.6; }}
+</style>
+</head>
+<body>
+  <a class="back" href="index.html">&larr; Rapora Dön</a>
+  <h1>Yatırım Önerisi — Yapay Zeka Destekli Bilgilendirme</h1>
+  <div class="subtitle">Takip edilen {len(rows)} para piyasası fonu arasından, incelemeye değer bulunan 3 fon ve gerekçeleri.</div>
+
+  <div class="warn-box">
+    <b>Bu bir yatırım tavsiyesi değildir.</b> Aşağıdaki analiz, "Karar Ver" butonuna bastığınızda tarayıcınızdan
+    doğrudan bir yapay zeka modeline (Claude) gönderilen kamuya açık fon verilerine ve modelin genel ekonomik
+    bilgisine dayanır. Kişiselleştirilmiş, profesyonel bir finansal tavsiye değildir; yatırım kararlarınızı
+    vermeden önce kendi araştırmanızı yapın ve gerekirse yetkili bir finansal danışmana başvurun.
+  </div>
+
+  <div class="card">
+    <h2>AI Analizini Başlat</h2>
+    <div class="btn-row">
+      <button class="btn" id="decideBtn" onclick="decide()">Karar Ver</button>
+      <button class="btn secondary" onclick="resetApiKey()">API Anahtarını Sıfırla</button>
+    </div>
+    <div class="key-status" id="keyStatus"></div>
+    <div class="loading" id="loading">Analiz ediliyor, bu birkaç saniye sürebilir…</div>
+    <div id="result"></div>
+    <div id="errBox"></div>
+    <div class="help">
+      Bu özellik kendi Claude (Anthropic) API anahtarınızı kullanır — anahtar sadece bu tarayıcıda saklanır,
+      kimseyle paylaşılmaz, doğrudan Anthropic'in sunucusuna gönderilir. Anahtarınız yoksa
+      <a href="https://console.anthropic.com/settings/keys" target="_blank" style="color:var(--accent)">console.anthropic.com</a>
+      üzerinden ücretsiz bir hesapla oluşturabilirsiniz. Her analiz Anthropic hesabınızdan çok küçük bir ücret
+      (bir kaç kuruş civarı) düşer.
+    </div>
+  </div>
+
+<script>
+  const FUNDS = {funds_json};
+  const PERIOD_DAYS = {{ gunluk: 1, haftalik: 7, aylik: 30, yillik: 365 }};
+
+  function parseDate(s) {{ return new Date(s + 'T00:00:00').getTime(); }}
+
+  function computeForPeriod(hist, days) {{
+    if (!hist || hist.length === 0) return null;
+    const last = hist[hist.length - 1];
+    if (hist.length === 1) return null;
+    const targetTime = parseDate(last[0]) - days * 86400000;
+    let baseline = hist[0];
+    for (let i = hist.length - 1; i >= 0; i--) {{
+      if (parseDate(hist[i][0]) <= targetTime) {{ baseline = hist[i]; break; }}
+    }}
+    if (baseline[1] <= 0 || baseline[0] === last[0]) return null;
+    return (last[1] - baseline[1]) / baseline[1] * 100;
+  }}
+
+  function getApiKey(forcePrompt) {{
+    let key = localStorage.getItem('tefas_anthropic_key') || '';
+    if (forcePrompt || !key) {{
+      key = prompt('Claude (Anthropic) API anahtarınız (sadece bu tarayıcıda saklanır):', '') || key;
+      if (key) localStorage.setItem('tefas_anthropic_key', key);
+    }}
+    return key;
+  }}
+
+  function resetApiKey() {{
+    localStorage.removeItem('tefas_anthropic_key');
+    updateKeyStatus();
+    getApiKey(true);
+  }}
+
+  function updateKeyStatus() {{
+    const key = localStorage.getItem('tefas_anthropic_key') || '';
+    document.getElementById('keyStatus').textContent = key
+      ? 'API anahtarı kayıtlı (sk-ant-...' + key.slice(-4) + ')'
+      : 'Henüz bir API anahtarı girilmedi.';
+  }}
+  updateKeyStatus();
+
+  function buildPrompt() {{
+    const today = new Date().toISOString().slice(0, 10);
+    const lines = FUNDS.map(f => {{
+      const g = computeForPeriod(f.hist, PERIOD_DAYS.gunluk);
+      const h = computeForPeriod(f.hist, PERIOD_DAYS.haftalik);
+      const a = computeForPeriod(f.hist, PERIOD_DAYS.aylik);
+      const y = computeForPeriod(f.hist, PERIOD_DAYS.yillik);
+      const fmt = v => v === null ? '—' : v.toFixed(4) + '%';
+      return `${{f.kod}} | ${{f.sirket}} | ${{f.ad}} | Risk ${{f.risk}}/7 | Günlük ${{fmt(g)}} | Haftalık ${{fmt(h)}} | Aylık ${{fmt(a)}} | Yıllık ${{fmt(y)}}`;
+    }});
+    return `Bugünün tarihi: ${{today}}. Sen Türkiye'deki TEFAS para piyasası fonları hakkında bilgilendirme amaçlı analiz yapan bir asistansın.
+
+Aşağıda risk değeri 1/7 veya 2/7 olan, TL bazlı para piyasası fonlarının listesi ve güncel getiri verileri var (kod | kurucu firma | fon adı | risk | günlük getiri | haftalık getiri | aylık getiri | yıllık getiri):
+
+${{lines.join('\\n')}}
+
+Görevin: Genel ekonomik konjonktür hakkındaki bilgini (enflasyon, TCMB politika faizi, TL para piyasası koşulları gibi) ve yukarıdaki getiri/risk verilerini birlikte değerlendirerek, bu listeden incelemeye değer bulduğun 3 fonu seç.
+
+Yanıtını şu şekilde yapılandır:
+1) Önce 2-3 cümlelik güncel ekonomik konjonktür özeti (bu değerlendirmeyi nasıl etkiliyor).
+2) Seçtiğin 3 fonu, kod ve firma adıyla birlikte sırayla listele; her biri için 2-4 cümlelik somut gerekçe yaz (getiri seviyesi, risk uyumu, tutarlılık gibi noktalara değin).
+3) Kısaca "Bu kararı nasıl verdim" başlığıyla metodolojini özetle.
+4) Yanıtının başında VE sonunda, bunun kişiselleştirilmiş bir yatırım tavsiyesi olmadığını, kamuya açık verilere dayalı genel bir bilgilendirme olduğunu, yatırım kararlarının kendi araştırması veya yetkili bir finansal danışman desteğiyle verilmesi gerektiğini açıkça belirt.
+
+Düz metin olarak yaz (markdown/yıldız kullanma), paragraflar arasında boş satır bırak.`;
+  }}
+
+  async function decide() {{
+    const btn = document.getElementById('decideBtn');
+    const loading = document.getElementById('loading');
+    const result = document.getElementById('result');
+    const errBox = document.getElementById('errBox');
+    errBox.textContent = '';
+    result.classList.remove('show');
+    result.textContent = '';
+
+    const apiKey = getApiKey(false);
+    if (!apiKey) {{
+      errBox.innerHTML = '<div class="err">API anahtarı girilmedi.</div>';
+      return;
+    }}
+
+    btn.disabled = true;
+    loading.classList.add('show');
+    try {{
+      const res = await fetch('https://api.anthropic.com/v1/messages', {{
+        method: 'POST',
+        headers: {{
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true',
+          'Content-Type': 'application/json',
+        }},
+        body: JSON.stringify({{
+          model: 'claude-sonnet-5',
+          max_tokens: 1500,
+          messages: [{{ role: 'user', content: buildPrompt() }}],
+        }}),
+      }});
+      if (!res.ok) {{
+        const t = await res.text();
+        throw new Error('HTTP ' + res.status + ': ' + t.slice(0, 300));
+      }}
+      const data = await res.json();
+      const text = (data.content || []).map(b => b.text || '').join('\\n').trim();
+      result.textContent = text || 'Yanıt alınamadı.';
+      result.classList.add('show');
+    }} catch (e) {{
+      errBox.innerHTML = '<div class="err">Hata: ' + e.message + '</div>';
+    }} finally {{
+      btn.disabled = false;
+      loading.classList.remove('show');
+    }}
+  }}
+</script>
+</body>
+</html>"""
+    return html
+
+
 def build(date_str=None, prices=None):
     """Load data, optionally add a new day's prices, regenerate the report."""
     data = load_data()
@@ -554,4 +770,7 @@ def build(date_str=None, prices=None):
     os.makedirs(os.path.dirname(REPORT_FILE), exist_ok=True)
     with open(REPORT_FILE, "w", encoding="utf-8") as f:
         f.write(html)
+    karar_html = render_karar_html(rows)
+    with open(KARAR_FILE, "w", encoding="utf-8") as f:
+        f.write(karar_html)
     return rows
