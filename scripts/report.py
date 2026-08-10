@@ -724,14 +724,14 @@ Düz metin olarak yaz (markdown/yıldız kullanma), paragraflar arasında boş s
     btn.disabled = true;
     loading.classList.add('show');
     try {{
-      const model = 'gemini-2.5-flash';
+      const model = 'gemini-3.6-flash';
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${{model}}:generateContent?key=${{encodeURIComponent(apiKey)}}`;
       const res = await fetch(url, {{
         method: 'POST',
         headers: {{ 'Content-Type': 'application/json' }},
         body: JSON.stringify({{
           contents: [{{ parts: [{{ text: buildPrompt() }}] }}],
-          generationConfig: {{ maxOutputTokens: 1500 }},
+          generationConfig: {{ maxOutputTokens: 4000 }},
         }}),
       }});
       if (!res.ok) {{
