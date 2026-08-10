@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TEFAS Para Piyasası Fonları (Firma Bazlı) - Günlük Getiri Raporu</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1420; --card: #171d2b; --border: #2a3243; --text: #e6e9ef;
+    --muted: #8b93a7; --pos: #3ddc84; --neg: #ff5c72; --accent: #4f8cff;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 32px; background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+  }
+  h1 { font-size: 22px; margin: 0 0 4px 0; }
+  .subtitle { color: var(--muted); font-size: 13px; margin-bottom: 24px; }
+  .summary { display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
+  .stat {
+    background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+    padding: 14px 18px; min-width: 150px;
+  }
+  .stat .label { color: var(--muted); font-size: 12px; margin-bottom: 6px; }
+  .stat .value { font-size: 20px; font-weight: 600; }
+  .card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+    padding: 20px; margin-bottom: 20px;
+  }
+  .card h2 { font-size: 15px; margin: 0 0 16px 0; color: var(--text); font-weight: 700; }
+  .card h2 .muted { color: var(--muted); font-weight: 500; font-size: 13px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th {
+    text-align: left; padding: 10px 12px; color: var(--muted); font-weight: 600;
+    border-bottom: 1px solid var(--border); font-size: 11px; text-transform: uppercase; letter-spacing: .03em;
+  }
+  td { padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+  .code { font-weight: 700; color: var(--accent); }
+  .name { color: var(--text); }
+  .num { text-align: right; font-variant-numeric: tabular-nums; }
+  .pos { color: var(--pos); font-weight: 600; }
+  .neg { color: var(--neg); font-weight: 600; }
+  .muted { color: var(--muted); }
+  .spark { text-align: right; }
+  footer { color: var(--muted); font-size: 12px; margin-top: 24px; }
+  .chart-wrap { height: 360px; }
+  .toc { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 24px; }
+  .toc a {
+    padding: 6px 12px; border-radius: 8px; text-decoration: none; font-size: 12px; font-weight: 600;
+    border: 1px solid var(--border); color: var(--muted);
+  }
+  .toc a:hover { color: var(--text); border-color: var(--accent); }
+  .legend { display: flex; gap: 18px; margin-bottom: 12px; font-size: 12px; color: var(--muted); }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .swatch { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+</style>
+</head>
+<body>
+  <h1>TEFAS Para Piyasası Fonları — Firma Bazlı Günlük Getiri Raporu</h1>
+  <div class="subtitle">8 kurucu firma · 32 fon (risk 1/7 veya 2/7) · Son güncelleme: </div>
+
+  <div class="toc">
+    <a href="#Ziraat-Portföy">Ziraat Portföy</a><a href="#İş-Portföy">İş Portföy</a><a href="#Ak-Portföy">Ak Portföy</a><a href="#Garanti-BBVA-Portföy">Garanti BBVA Portföy</a><a href="#Yapı-Kredi-Portföy">Yapı Kredi Portföy</a><a href="#Deniz-Portföy">Deniz Portföy</a><a href="#QNB-Finans-Portföy">QNB Finans Portföy</a><a href="#TEB-Portföy">TEB Portföy</a>
+  </div>
+
+  <div class="summary">
+    <div class="stat"><div class="label">Firma Sayısı</div><div class="value">8</div></div>
+    <div class="stat"><div class="label">Toplam Fon</div><div class="value">32</div></div>
+    <div class="stat"><div class="label">Ortalama Günlük Getiri</div><div class="value">0.3219%</div></div>
+    <div class="stat"><div class="label">En Yüksek Getiri</div><div class="value">PPI · Yapı Kredi Portföy</div></div>
+  </div>
+
+  <div class="card">
+    <h2>Tüm Fonlar — Günlük Getiri Karşılaştırması</h2>
+    <div class="legend">
+      <span><span class="swatch" style="background:#4f8cff"></span>Risk 1/7</span>
+      <span><span class="swatch" style="background:#f5a623"></span>Risk 2/7</span>
+    </div>
+    <div class="chart-wrap"><canvas id="returnChart"></canvas></div>
+  </div>
+
+  
+  <div class="card" id="Ziraat-Portföy">
+    <h2>Ziraat Portföy <span class="muted">· 3 fon · ortalama 0.3240%</span></h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Kod</th>
+          <th>Fon Adı</th>
+          <th style="text-align:right">Risk</th>
+          <th style="text-align:right">Fiyat (Birim Pay)</th>
+          <th style="text-align:right">Günlük Getiri</th>
+          <th style="text-align:right">Son 30 Gün</th>
+        </tr>
+      </thead>
+      <tbody>
+        
+        <tr>
+          <td class="code">ZBJ</td>
+          <td class="name">ZİRAAT PORTFÖY BAŞAK PARA PİYASASI (TL) FONU</td>
+          <td class="num muted">1/7</td>
+          <td class="num">5,117179</td>
+          <td class="num"><span class="pos">+0.3303%</span></td>
+          <td class="spark"><canvas class="sparkline" data-series='[5.100333, 5.117179]' width="120" height="32"></canvas></td>
+        </tr>
+        <tr>
+          <td class="code">TZL</td>
+          <td class="name">ZİRAAT PORTFÖY PARA PİYASASI (TL) FONU</td>
+          <td class="num muted">1/7</td>
+          <td class="num">0,136542</td>
+          <td class="num"><span class="pos">+0.3218%</span></td>
+          <td class="spark"><canvas class="sparkline" data-series='[0.136104, 0.136542]' width="120" height="32"></canvas></td>
+        </tr>
+        <tr>
+          <td class="code">HLL</td>
+          <td class="name">ZİRAAT PORTFÖY HALKBANK PARA PİYASASI (TL) FONU</td>
+          <td class="num muted">1/7</td>
+          <td class="num">0,377731</td>
+          <td class="num"><span class="pos">+0.3200%</span></td>
+          <td class="spark"><canvas class="sparkline" data-series='[0.376526, 0.377731]' width="120" height="32"></canvas></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="card" id="İş-Portföy">
+    <h2>İş Portföy <span class="muted">· 4 fon · ortalama 0.3214%</span></h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Kod</th>
+          <th>Fon Adı</th>
+          <th style="text-align:right">Risk</th>
+          <th style="text-align:right">Fiyat (Birim Pay)</th>
+          <th style="text-align:right">Günlük Getiri</th>
+          <th style="text-align:right">Son 30 Gün</th>
+        </tr>
+      </thead>
+      <tbody>
+        
+        <tr>
+          <td class="code">IUZ</td>
+          <td class="name">İŞ PORTFÖY ANADOLUBANK PARA PİYASASI (TL) FONU</td>
+          <td class="num muted">1/7</td>
+          <td class="num">4,699999</td>
+          <td class="num"><span class="pos">+0.3247%</span></td>
+          <td class="spark"><canvas class="sparkline" data-series='[4.684786, 4.699999]' width="120" height="32"></canvas></td>
+        </tr>
+        <tr>
+          <td class="code">IOP</td>
+          <td class="name">İŞ PORTFÖY ODEABANK PARA PİYASASI (TL) FONU</td>
+          <td class="num muted">2/7</td>
+          <td class="num">6,248067</td>
+          <td class="num"><span class="pos">+0.3235%</span></td>
+          <td class="spark"><canvas class="sparkline" data-series='[6.227917, 6.248067]' width="120" height="32"></canvas></td>
+        </tr>
+        <tr>
+          <td class="code">IOO</td>
+          <td class="name">İŞ PORTFÖY İKİNCİ PARA PİYASASI (TL) FONU</td>
+          <td class="num muted">2/7</td>
+          <td class="num">4,542901</td>
+          <td class="num"><span class="pos">+0.3206%</span></td>
+          <td class="spark"><canvas class="sparkline" data-series='[4.528385, 4.542901]' width="120" height="32"></canvas></td>
+        </tr>
+        <tr>
+          <td class="code">TI1</td>
+          <td class="name">İŞ PORTFÖY PARA PİYASASI (TL) FONU</td>
+          <td class="num muted">2/7</td>
+          <td class="num">1.646,387841</td>
+          <td class="num"><span class="pos">+0.3167%</span></td>
+          <td class="spark"><canvas class="sparkline" data-series='[1641.190162, 1646.387841]' width="120" height="32"></canvas></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="card" id="Ak-Portföy">
+    <h2>Ak Portföy <span class="muted">· 4 fon · ortalama 0.3229%</span></h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Kod</th>
+          <th>Fon Adı</th>
+          <th style="text-align:right">Risk</th>
+          <th style="text-align:right">Fiyat (Birim Pay)</th>
+          <th style="text-align:right">Günlük Getiri</th>
+          <th style="text-align:right">Son 30 Gün</th>
+        </tr>
+      </thead>
+      <tbody>
+        
+        <tr>
+          <td class="code">SAP</td>
+          <td class="name">AK PORTFÖY ŞEKERBANK PARA PİYASASI (TL) FONU</td>
+          <td class="num muted">2/7</td>
+          <td class="num">1,828741</td>
+          <td class="num"><span class="pos">+0.3290%</span></td>
+          <td class="spark"><canvas class="sparkline" data-series='[1.822744, 1.828741]' width="120" height="32"></canvas></td>
+        </tr>
+        <tr>
+          <td class="code">ANL</td>
+          <td class="name">AK PORTFÖY ALTERNATİF BANK PARA PİYASASI (TL)FONU</td>
+          <td class="num muted">1/7</td>
+          <td class="num">37,044740</td>
+          <td class="num"><span class="pos">+0.3264%</span></td>
+          <td class="spark"><canvas class="sparkline" data-series='[36.924226, 37.04474]' width="120" height="32"></canvas></td>
+        </tr>
+        <tr>
+          <td class="code">BGP</td>
+          <td class="name">AK PORTFÖY ÜÇÜNCÜ PARA PİYASASI (TL) FONU</td>
+          <td class="num muted">1/7</td>
+          <td class="num">6,459047</td>
+          <td class="num"><span class="pos">+0.3223%</span></td>
+          <td class="spark"><canvas class="sparkline" data-series='[6.438298, 6.459047]' width="120" height="32"></canvas></td>
+        </tr>
+        <tr>
+          <td class="code">ALE</td>
+          <td class="name">AK PORTFÖY PARA PİYASASI (TL) FONU</td>
+          <td class="num muted">1/7</td>
+          <td class="num">13,354885</td>
+          <td class="num"><span class="pos">+0.3140%</span></td>
+          <td class="spark"><canvas class="sparkline" data-series='[13.313083, 13.354885]' width="120" height="32"></canvas></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="card" id="Garanti-BBVA-Portföy">
+    <h2>Garanti BBVA Portföy <span class="muted">· 4 fon · ortalama 0.3231%</span></h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Kod</th>
+          <th>Fon Adı</th>
+          <th style="text-align:right">Risk</th>
+          <th style="text-align:right">Fiyat (Birim Pay)</th>
+          <th style="text-align:right">Günlük Getiri</th>
+          <th style="text-align:right">Son 30 Gün</th>
+        </tr>
+      </thead>
+      <tbody>
+        
+        <tr>
+          <td class="code">GPZ</td>
+          <td class="name">GARANTİ PORTFÖY ÜÇÜNCÜ PARA PİYASASI FONU</td>
+          <td class="num muted">1/7</td>
+          <td class="num">1,937937</td>
+          <td class="num"><span class="pos">+0.3368%</span></td>
+          <td class="spark"><canvas class="sparkline" data-series='[1.931432, 1.937937]' width="120" height="32"></canvas></td>
+        </tr>
+        <tr>
+          <td class="code">GTL</td>
+          <td class="name">GARANTİ PORTFÖY BİRİNCİ PARA PİYASASI (TL) FONU</td>
+          <td class="num muted">1/7</td>
+          <td class="num">0,133077</td>
+          <td class="num"><span class="pos">+0.3219%</span></td>
+          <td class="spark"><canvas class="sparkline" data-series='[0.13265, 0.133077]' width="120" height="32"></canvas></td>
+        </tr>
+        <tr>
+          <td class="code">GNP</td>
+          <td class="name">GARANTİ PORTFÖY NEMA PARA PİYASASI (TL) FONU</td>
+          <td class="num muted">1/7</td>
+          <td class="num">1,455812</td>
+          <td class="num"><span class="pos">+0.3176%</span></td>
+          <td class="spark"><canvas class="sparkline" data-series='[1.451203, 1.455812]' width="120" height="32"></canvas></td>
+        </tr>
+        <tr>
+          <td class="code">GAL</td>
+          <td class="name">GARANTİ PORTFÖY İKİNCİ PARA PİYASASI (TL) FONU</td>
+          <td class="num muted">1/7</td>
+          <td class="num">404,618217</td>
+          <td class="num"><span class="pos">+0.3159%</span></td>
+          <td class="spark"><canvas class="sparkline" data-series='[403.343937, 404.618217]' width="120" height="32"></canvas></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="card" id="Yapı-Kredi-Portföy">
+    <h2>Yapı Kredi Portföy <span class="muted">· 3 fon · ortalama 0.3346%</span></h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Kod</th>
+          <th>Fon Adı</th>
+          <th style="text-align:right">Risk</th>
+          <th style="text-align:right">Fiyat (Birim Pay)</th>
+          <th style="text-align:right">Günlük Getiri</th>
+          <th style="text-align:right">Son 30 Gün</th>
+        </tr>
+      </thead>
+      <tbody>
+        
+        <tr>
+          <td class="code">PPI</td>
+          <td class="name">YAPI KREDİ PORTFÖY ÜÇÜNCÜ PARA PİYASASI (TL) FONU</td>
+          <td class="num muted">1/7</td>
+          <td class="num">2,256464</td>
+          <td class="num"><span class="pos">+0.3547%</span></td>
+          <td class="spark"><canvas class="sparkline" data-series='[2.248488, 2.256464]' width="120" height="32"></canvas></td>
+        </tr>
+        <tr>
+          <td class="code">YVD</td>
+          <td class="name">YAPI KREDİ PORTFÖY İKİNCİ PARA PİYASASI (TL) FONU</td>
+          <td class="num muted">1/7</td>
+          <td class="num">4,364875</td>
+          <td class="num"><span class="pos">+0.3287%</span></td>
+          <td class="spark"><canvas class="sparkline" data-series='[4.350573, 4.364875]' width="120" height="32"></canvas></td>
+        </tr>
+        <tr>
+          <td class="code">YLB</td>
+          <td class="name">YAPI KREDİ PORTFÖY PARA PİYASASI FONU</td>
+          <td class="num muted">1/7</td>
+          <td class="num">1,798068</td>
+          <td class="num"><span class="pos">+0.3204%</span></td>
+          <td class="spark"><canvas class="sparkline" data-series='[1.792325, 1.798068]' width="120" height="32"></canvas></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="card" id="Deniz-Portföy">
+    <h2>Deniz Portföy <span class="muted">· 3 fon · ortalama 0.3210%</span></h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Kod</th>
+          <th>Fon Adı</th>
+          <th style="text-align:right">Risk</th>
+          <th style="text-align:right">Fiyat (Birim Pay)</th>
+          <th style="text-align:right">Günlük Getiri</th>
+          <th style="text-align:right">Son 30 Gün</th>
+        </tr>
+      </thead>
+      <tbody>
+        
+        <tr>
+          <td class="code">DL2</td>
+          <td class="name">DENİZ PORTFÖY İKİNCİ PARA PİYASASI (TL) FONU</td>
+          <td class="num muted">1/7</td>
+          <td class="num">2,449423</td>
+          <td class="num"><span class="pos">+0.3283%</span></td>
+          <td class="spark"><canvas class="sparkline" data-series='[2.441409, 2.449423]' width="120" height="32"></canvas></td>
+        </tr>
+        <tr>
+          <td class="code">DCN</td>
+          <td class="name">DENİZ PORTFÖY ÜÇÜNCÜ PARA PİYASASI (TL) FONU</td>
+          <td class="num muted">1/7</td>
+          <td class="num">1,421791</td>
+          <td class="num"><span class="pos">+0.3181%</span></td>
+          <td class="spark"><canvas class="sparkline" data-series='[1.417282, 1.421791]' width="120" height="32"></canvas></td>
+        </tr>
+        <tr>
+          <td class="code">DLY</td>
+          <td class="name">DENİZ PORTFÖY PARA PİYASASI (TL) FONU</td>
+          <td class="num muted">1/7</td>
+          <td class="num">6,004720</td>
+          <td class="num"><span class="pos">+0.3166%</span></td>
+          <td class="spark"><canvas class="sparkline" data-series='[5.98577, 6.00472]' width="120" height="32"></canvas></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="card" id="QNB-Finans-Portföy">
+    <h2>QNB Finans Portföy <span class="muted">· 5 fon · ortalama 0.3194%</span></h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Kod</th>
+          <th>Fon Adı</th>
+          <th style="text-align:right">Risk</th>
+          <th style="text-align:right">Fiyat (Birim Pay)</th>
+          <th style="text-align:right">Günlük Getiri</th>
+          <th style="text-align:right">Son 30 Gün</th>
+        </tr>
+      </thead>
+      <tbody>
+        
+        <tr>
+          <td class="code">YMP</td>
+          <td class="name">QNB PORTFÖY YMK PARA PİYASASI (TL) ÖZEL FON</td>
+          <td class="num muted">2/7</td>
+          <td class="num">1,144069</td>
+          <td class="num"><span class="pos">+0.3269%</span></td>
+          <td class="spark"><canvas class="sparkline" data-series='[1.140341, 1.144069]' width="120" height="32"></canvas></td>
+        </tr>
+        <tr>
+          <td class="code">ENR</td>
+          <td class="name">QNB PORTFÖY ENPARA PARA PİYASASI (TL) FONU</td>
+          <td class="num muted">1/7</td>
+          <td class="num">1,189832</td>
+          <td class="num"><span class="pos">+0.3190%</span></td>
+          <td class="spark"><canvas class="sparkline" data-series='[1.186048, 1.189832]' width="120" height="32"></canvas></td>
+        </tr>
+        <tr>
+          <td class="code">FSK</td>
+          <td class="name">QNB PORTFÖY İKİNCİ PARA PİYASASI (TL) FONU</td>
+          <td class="num muted">2/7</td>
+          <td class="num">6,042179</td>
+          <td class="num"><span class="pos">+0.3187%</span></td>
+          <td class="spark"><canvas class="sparkline" data-series='[6.022982, 6.042179]' width="120" height="32"></canvas></td>
+        </tr>
+        <tr>
+          <td class="code">FI5</td>
+          <td class="name">QNB PORTFÖY PARA PİYASASI (TL) FONU</td>
+          <td class="num muted">1/7</td>
+          <td class="num">733,602048</td>
+          <td class="num"><span class="pos">+0.3173%</span></td>
+          <td class="spark"><canvas class="sparkline" data-series='[731.28193, 733.602048]' width="120" height="32"></canvas></td>
+        </tr>
+        <tr>
+          <td class="code">OPJ</td>
+          <td class="name">QNB PORTFÖY QNB PARA PİYASASI (TL) FONU</td>
+          <td class="num muted">1/7</td>
+          <td class="num">1,664532</td>
+          <td class="num"><span class="pos">+0.3149%</span></td>
+          <td class="spark"><canvas class="sparkline" data-series='[1.659307, 1.664532]' width="120" height="32"></canvas></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="card" id="TEB-Portföy">
+    <h2>TEB Portföy <span class="muted">· 6 fon · ortalama 0.3160%</span></h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Kod</th>
+          <th>Fon Adı</th>
+          <th style="text-align:right">Risk</th>
+          <th style="text-align:right">Fiyat (Birim Pay)</th>
+          <th style="text-align:right">Günlük Getiri</th>
+          <th style="text-align:right">Son 30 Gün</th>
+        </tr>
+      </thead>
+      <tbody>
+        
+        <tr>
+          <td class="code">TKM</td>
+          <td class="name">TEB PORTFÖY PARA PİYASASI (TL) FONU</td>
+          <td class="num muted">1/7</td>
+          <td class="num">0,212842</td>
+          <td class="num"><span class="pos">+0.3224%</span></td>
+          <td class="spark"><canvas class="sparkline" data-series='[0.212158, 0.212842]' width="120" height="32"></canvas></td>
+        </tr>
+        <tr>
+          <td class="code">BRG</td>
+          <td class="name">TEB PORTFÖY BURGAN BANK PARA PİYASASI (TL) FONU</td>
+          <td class="num muted">1/7</td>
+          <td class="num">5,058109</td>
+          <td class="num"><span class="pos">+0.3170%</span></td>
+          <td class="spark"><canvas class="sparkline" data-series='[5.042126, 5.058109]' width="120" height="32"></canvas></td>
+        </tr>
+        <tr>
+          <td class="code">PTL</td>
+          <td class="name">TEB PORTFÖY İKİNCİ PARA PİYASASI (TL) FONU</td>
+          <td class="num muted">2/7</td>
+          <td class="num">1,845651</td>
+          <td class="num"><span class="pos">+0.3152%</span></td>
+          <td class="spark"><canvas class="sparkline" data-series='[1.839852, 1.845651]' width="120" height="32"></canvas></td>
+        </tr>
+        <tr>
+          <td class="code">IGL</td>
+          <td class="name">TEB PORTFÖY ING BANK PARA PİYASASI (TL) FONU</td>
+          <td class="num muted">1/7</td>
+          <td class="num">572,649649</td>
+          <td class="num"><span class="pos">+0.3149%</span></td>
+          <td class="spark"><canvas class="sparkline" data-series='[570.851908, 572.649649]' width="120" height="32"></canvas></td>
+        </tr>
+        <tr>
+          <td class="code">PYB</td>
+          <td class="name">TEB PORTFÖY ALTERNATİFBANK PARA PİYASASI (TL) FON</td>
+          <td class="num muted">2/7</td>
+          <td class="num">1,844957</td>
+          <td class="num"><span class="pos">+0.3138%</span></td>
+          <td class="spark"><canvas class="sparkline" data-series='[1.839186, 1.844957]' width="120" height="32"></canvas></td>
+        </tr>
+        <tr>
+          <td class="code">SKL</td>
+          <td class="name">TEB PORTFÖY ŞEKERBANK PARA PİYASASI (TL) FONU</td>
+          <td class="num muted">1/7</td>
+          <td class="num">2,010045</td>
+          <td class="num"><span class="pos">+0.3128%</span></td>
+          <td class="spark"><canvas class="sparkline" data-series='[2.003777, 2.010045]' width="120" height="32"></canvas></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <footer>
+    Veri kaynağı: <a href="https://www.tefas.gov.tr/tr/fon-verileri" style="color:var(--accent)">TEFAS Fon Verileri</a>.
+    Bu rapor bilgilendirme amaçlıdır, yatırım tavsiyesi değildir. Her iş günü otomatik olarak GitHub Actions ile güncellenir.
+  </footer>
+
+<script>
+  const ctx = document.getElementById('returnChart');
+  const chartRisks = [1, 1, 1, 2, 1, 1, 2, 1, 1, 2, 1, 1, 1, 1, 2, 1, 1, 1, 2, 1, 1, 1, 1, 2, 1, 1, 2, 1, 1, 1, 2, 1];
+  const riskColor = { 1: 'rgba(79,140,255,0.85)', 2: 'rgba(245,166,35,0.85)' };
+  const riskColorHover = { 1: 'rgba(79,140,255,1)', 2: 'rgba(245,166,35,1)' };
+  new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: ["Yap\u0131 Kredi Portf\u00f6y (PPI)", "Garanti BBVA Portf\u00f6y (GPZ)", "Ziraat Portf\u00f6y (ZBJ)", "Ak Portf\u00f6y (SAP)", "Yap\u0131 Kredi Portf\u00f6y (YVD)", "Deniz Portf\u00f6y (DL2)", "QNB Finans Portf\u00f6y (YMP)", "Ak Portf\u00f6y (ANL)", "\u0130\u015f Portf\u00f6y (IUZ)", "\u0130\u015f Portf\u00f6y (IOP)", "TEB Portf\u00f6y (TKM)", "Ak Portf\u00f6y (BGP)", "Garanti BBVA Portf\u00f6y (GTL)", "Ziraat Portf\u00f6y (TZL)", "\u0130\u015f Portf\u00f6y (IOO)", "Yap\u0131 Kredi Portf\u00f6y (YLB)", "Ziraat Portf\u00f6y (HLL)", "QNB Finans Portf\u00f6y (ENR)", "QNB Finans Portf\u00f6y (FSK)", "Deniz Portf\u00f6y (DCN)", "Garanti BBVA Portf\u00f6y (GNP)", "QNB Finans Portf\u00f6y (FI5)", "TEB Portf\u00f6y (BRG)", "\u0130\u015f Portf\u00f6y (TI1)", "Deniz Portf\u00f6y (DLY)", "Garanti BBVA Portf\u00f6y (GAL)", "TEB Portf\u00f6y (PTL)", "TEB Portf\u00f6y (IGL)", "QNB Finans Portf\u00f6y (OPJ)", "Ak Portf\u00f6y (ALE)", "TEB Portf\u00f6y (PYB)", "TEB Portf\u00f6y (SKL)"],
+      datasets: [{
+        label: 'Günlük Getiri (%)',
+        data: [0.3547, 0.3368, 0.3303, 0.329, 0.3287, 0.3283, 0.3269, 0.3264, 0.3247, 0.3235, 0.3224, 0.3223, 0.3219, 0.3218, 0.3206, 0.3204, 0.32, 0.319, 0.3187, 0.3181, 0.3176, 0.3173, 0.317, 0.3167, 0.3166, 0.3159, 0.3152, 0.3149, 0.3149, 0.314, 0.3138, 0.3128],
+        backgroundColor: chartRisks.map(r => riskColor[r] || 'rgba(139,147,167,0.7)'),
+        hoverBackgroundColor: chartRisks.map(r => riskColorHover[r] || 'rgba(139,147,167,0.9)'),
+        borderRadius: 4,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: {
+        x: { ticks: { color: '#8b93a7', maxRotation: 90, minRotation: 90, autoSkip: false, font: { size: 9 } }, grid: { color: '#2a3243' } },
+        y: { ticks: { color: '#8b93a7' }, grid: { color: '#2a3243' } }
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            afterLabel: (item) => 'Risk ' + chartRisks[item.dataIndex] + '/7'
+          }
+        }
+      }
+    }
+  });
+
+  document.querySelectorAll('.sparkline').forEach(canvas => {
+    const series = JSON.parse(canvas.dataset.series);
+    if (series.length < 2) return;
+    const min = Math.min(...series), max = Math.max(...series);
+    new Chart(canvas, {
+      type: 'line',
+      data: {
+        labels: series.map((_, i) => i),
+        datasets: [{
+          data: series, borderColor: '#4f8cff', borderWidth: 1.5,
+          pointRadius: 0, tension: 0.3, fill: false,
+        }]
+      },
+      options: {
+        responsive: false, maintainAspectRatio: false,
+        scales: { x: { display: false }, y: { display: false, min, max } },
+        plugins: { legend: { display: false }, tooltip: { enabled: false } },
+        elements: { point: { radius: 0 } }
+      }
+    });
+  });
+</script>
+</body>
+</html>
