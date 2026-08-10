@@ -1,0 +1,45 @@
+{
+  "aciklama": "TEFAS Para Piyasasi Semsiye Fonu, secili 8 kurucunun (Ziraat, Is, Ak, Garanti BBVA, Yapi Kredi, Deniz, QNB Finans, TEB) risk degeri 1/7 veya 2/7 olan fonlarinin gunluk fiyat ve getiri takibi",
+  "olusturma_tarihi": "2026-08-10",
+  "fonlar": {
+    "HLL": {"ad": "ZİRAAT PORTFÖY HALKBANK PARA PİYASASI (TL) FONU", "sirket": "Ziraat Portföy", "risk": 1, "gecmis": [{"tarih": "2026-08-07", "fiyat": 0.376526}, {"tarih": "2026-08-10", "fiyat": 0.377731}]},
+    "TZL": {"ad": "ZİRAAT PORTFÖY PARA PİYASASI (TL) FONU", "sirket": "Ziraat Portföy", "risk": 1, "gecmis": [{"tarih": "2026-08-07", "fiyat": 0.136104}, {"tarih": "2026-08-10", "fiyat": 0.136542}]},
+    "ZBJ": {"ad": "ZİRAAT PORTFÖY BAŞAK PARA PİYASASI (TL) FONU", "sirket": "Ziraat Portföy", "risk": 1, "gecmis": [{"tarih": "2026-08-07", "fiyat": 5.100333}, {"tarih": "2026-08-10", "fiyat": 5.117179}]},
+
+    "IOO": {"ad": "İŞ PORTFÖY İKİNCİ PARA PİYASASI (TL) FONU", "sirket": "İş Portföy", "risk": 2, "gecmis": [{"tarih": "2026-08-07", "fiyat": 4.528385}, {"tarih": "2026-08-10", "fiyat": 4.542901}]},
+    "IOP": {"ad": "İŞ PORTFÖY ODEABANK PARA PİYASASI (TL) FONU", "sirket": "İş Portföy", "risk": 2, "gecmis": [{"tarih": "2026-08-07", "fiyat": 6.227917}, {"tarih": "2026-08-10", "fiyat": 6.248067}]},
+    "IUZ": {"ad": "İŞ PORTFÖY ANADOLUBANK PARA PİYASASI (TL) FONU", "sirket": "İş Portföy", "risk": 1, "gecmis": [{"tarih": "2026-08-07", "fiyat": 4.684786}, {"tarih": "2026-08-10", "fiyat": 4.699999}]},
+    "TI1": {"ad": "İŞ PORTFÖY PARA PİYASASI (TL) FONU", "sirket": "İş Portföy", "risk": 2, "gecmis": [{"tarih": "2026-08-07", "fiyat": 1641.190162}, {"tarih": "2026-08-10", "fiyat": 1646.387841}]},
+
+    "ALE": {"ad": "AK PORTFÖY PARA PİYASASI (TL) FONU", "sirket": "Ak Portföy", "risk": 1, "gecmis": [{"tarih": "2026-08-07", "fiyat": 13.313083}, {"tarih": "2026-08-10", "fiyat": 13.354885}]},
+    "ANL": {"ad": "AK PORTFÖY ALTERNATİF BANK PARA PİYASASI (TL)FONU", "sirket": "Ak Portföy", "risk": 1, "gecmis": [{"tarih": "2026-08-07", "fiyat": 36.924226}, {"tarih": "2026-08-10", "fiyat": 37.044740}]},
+    "BGP": {"ad": "AK PORTFÖY ÜÇÜNCÜ PARA PİYASASI (TL) FONU", "sirket": "Ak Portföy", "risk": 1, "gecmis": [{"tarih": "2026-08-07", "fiyat": 6.438298}, {"tarih": "2026-08-10", "fiyat": 6.459047}]},
+    "SAP": {"ad": "AK PORTFÖY ŞEKERBANK PARA PİYASASI (TL) FONU", "sirket": "Ak Portföy", "risk": 2, "gecmis": [{"tarih": "2026-08-07", "fiyat": 1.822744}, {"tarih": "2026-08-10", "fiyat": 1.828741}]},
+
+    "GAL": {"ad": "GARANTİ PORTFÖY İKİNCİ PARA PİYASASI (TL) FONU", "sirket": "Garanti BBVA Portföy", "risk": 1, "gecmis": [{"tarih": "2026-08-07", "fiyat": 403.343937}, {"tarih": "2026-08-10", "fiyat": 404.618217}]},
+    "GNP": {"ad": "GARANTİ PORTFÖY NEMA PARA PİYASASI (TL) FONU", "sirket": "Garanti BBVA Portföy", "risk": 1, "gecmis": [{"tarih": "2026-08-07", "fiyat": 1.451203}, {"tarih": "2026-08-10", "fiyat": 1.455812}]},
+    "GPZ": {"ad": "GARANTİ PORTFÖY ÜÇÜNCÜ PARA PİYASASI FONU", "sirket": "Garanti BBVA Portföy", "risk": 1, "gecmis": [{"tarih": "2026-08-07", "fiyat": 1.931432}, {"tarih": "2026-08-10", "fiyat": 1.937937}]},
+    "GTL": {"ad": "GARANTİ PORTFÖY BİRİNCİ PARA PİYASASI (TL) FONU", "sirket": "Garanti BBVA Portföy", "risk": 1, "gecmis": [{"tarih": "2026-08-07", "fiyat": 0.132650}, {"tarih": "2026-08-10", "fiyat": 0.133077}]},
+
+    "PPI": {"ad": "YAPI KREDİ PORTFÖY ÜÇÜNCÜ PARA PİYASASI (TL) FONU", "sirket": "Yapı Kredi Portföy", "risk": 1, "gecmis": [{"tarih": "2026-08-07", "fiyat": 2.248488}, {"tarih": "2026-08-10", "fiyat": 2.256464}]},
+    "YLB": {"ad": "YAPI KREDİ PORTFÖY PARA PİYASASI FONU", "sirket": "Yapı Kredi Portföy", "risk": 1, "gecmis": [{"tarih": "2026-08-07", "fiyat": 1.792325}, {"tarih": "2026-08-10", "fiyat": 1.798068}]},
+    "YVD": {"ad": "YAPI KREDİ PORTFÖY İKİNCİ PARA PİYASASI (TL) FONU", "sirket": "Yapı Kredi Portföy", "risk": 1, "gecmis": [{"tarih": "2026-08-07", "fiyat": 4.350573}, {"tarih": "2026-08-10", "fiyat": 4.364875}]},
+
+    "DCN": {"ad": "DENİZ PORTFÖY ÜÇÜNCÜ PARA PİYASASI (TL) FONU", "sirket": "Deniz Portföy", "risk": 1, "gecmis": [{"tarih": "2026-08-07", "fiyat": 1.417282}, {"tarih": "2026-08-10", "fiyat": 1.421791}]},
+    "DL2": {"ad": "DENİZ PORTFÖY İKİNCİ PARA PİYASASI (TL) FONU", "sirket": "Deniz Portföy", "risk": 1, "gecmis": [{"tarih": "2026-08-07", "fiyat": 2.441409}, {"tarih": "2026-08-10", "fiyat": 2.449423}]},
+    "DLY": {"ad": "DENİZ PORTFÖY PARA PİYASASI (TL) FONU", "sirket": "Deniz Portföy", "risk": 1, "gecmis": [{"tarih": "2026-08-07", "fiyat": 5.985770}, {"tarih": "2026-08-10", "fiyat": 6.004720}]},
+
+    "ENR": {"ad": "QNB PORTFÖY ENPARA PARA PİYASASI (TL) FONU", "sirket": "QNB Finans Portföy", "risk": 1, "gecmis": [{"tarih": "2026-08-07", "fiyat": 1.186048}, {"tarih": "2026-08-10", "fiyat": 1.189832}]},
+    "FI5": {"ad": "QNB PORTFÖY PARA PİYASASI (TL) FONU", "sirket": "QNB Finans Portföy", "risk": 1, "gecmis": [{"tarih": "2026-08-07", "fiyat": 731.281930}, {"tarih": "2026-08-10", "fiyat": 733.602048}]},
+    "FSK": {"ad": "QNB PORTFÖY İKİNCİ PARA PİYASASI (TL) FONU", "sirket": "QNB Finans Portföy", "risk": 2, "gecmis": [{"tarih": "2026-08-07", "fiyat": 6.022982}, {"tarih": "2026-08-10", "fiyat": 6.042179}]},
+    "OPJ": {"ad": "QNB PORTFÖY QNB PARA PİYASASI (TL) FONU", "sirket": "QNB Finans Portföy", "risk": 1, "gecmis": [{"tarih": "2026-08-07", "fiyat": 1.659307}, {"tarih": "2026-08-10", "fiyat": 1.664532}]},
+    "YMP": {"ad": "QNB PORTFÖY YMK PARA PİYASASI (TL) ÖZEL FON", "sirket": "QNB Finans Portföy", "risk": 2, "gecmis": [{"tarih": "2026-08-07", "fiyat": 1.140341}, {"tarih": "2026-08-10", "fiyat": 1.144069}]},
+
+    "BRG": {"ad": "TEB PORTFÖY BURGAN BANK PARA PİYASASI (TL) FONU", "sirket": "TEB Portföy", "risk": 1, "gecmis": [{"tarih": "2026-08-07", "fiyat": 5.042126}, {"tarih": "2026-08-10", "fiyat": 5.058109}]},
+    "IGL": {"ad": "TEB PORTFÖY ING BANK PARA PİYASASI (TL) FONU", "sirket": "TEB Portföy", "risk": 1, "gecmis": [{"tarih": "2026-08-07", "fiyat": 570.851908}, {"tarih": "2026-08-10", "fiyat": 572.649649}]},
+    "PTL": {"ad": "TEB PORTFÖY İKİNCİ PARA PİYASASI (TL) FONU", "sirket": "TEB Portföy", "risk": 2, "gecmis": [{"tarih": "2026-08-07", "fiyat": 1.839852}, {"tarih": "2026-08-10", "fiyat": 1.845651}]},
+    "PYB": {"ad": "TEB PORTFÖY ALTERNATİFBANK PARA PİYASASI (TL) FON", "sirket": "TEB Portföy", "risk": 2, "gecmis": [{"tarih": "2026-08-07", "fiyat": 1.839186}, {"tarih": "2026-08-10", "fiyat": 1.844957}]},
+    "SKL": {"ad": "TEB PORTFÖY ŞEKERBANK PARA PİYASASI (TL) FONU", "sirket": "TEB Portföy", "risk": 1, "gecmis": [{"tarih": "2026-08-07", "fiyat": 2.003777}, {"tarih": "2026-08-10", "fiyat": 2.010045}]},
+    "TKM": {"ad": "TEB PORTFÖY PARA PİYASASI (TL) FONU", "sirket": "TEB Portföy", "risk": 1, "gecmis": [{"tarih": "2026-08-07", "fiyat": 0.212158}, {"tarih": "2026-08-10", "fiyat": 0.212842}]}
+  }
+}
