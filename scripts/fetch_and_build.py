@@ -87,7 +87,46 @@ def parse_rows(text, wanted_codes):
     return found
 
 
+def parse_detail_page(text):
+    """fon-detayli-analiz/{KOD} sayfasının düz metninden (fiyat, ad) çıkarır.
+    Bu sayfa, Para Piyasası dışındaki şemsiye fon türlerinde (ör. Serbest Fon)
+    olup sfonTurKod=107 sorgusunda görünmeyen fonlar için yedek kaynaktır.
+    """
+    lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
+    name = None
+    for ln in lines:
+        if ln.isupper() and "PORTFÖY" in ln:
+            name = ln
+            break
+    price = None
+    for i, ln in enumerate(lines):
+        if ln.startswith("Son Fiyat") and i + 1 < len(lines):
+            cleaned = lines[i + 1].replace(".", "").replace(",", ".")
+            try:
+                price = float(cleaned)
+            except ValueError:
+                pass
+            break
+    return price, name
+
+
+async def fetch_single_fund_detail(page, kod):
+    """Tek bir fon için fon-detayli-analiz sayfasından fiyat/ad çeker (yedek yol)."""
+    await page.goto(f"https://www.tefas.gov.tr/tr/fon-detayli-analiz/{kod}",
+                     wait_until="networkidle", timeout=45000)
+    await page.wait_for_timeout(2500)
+    body_text = await page.inner_text("body")
+    if "Request Rejected" in body_text:
+        raise RuntimeError("TEFAS bot korumasi (WAF) istegi reddetti (Request Rejected).")
+    return parse_detail_page(body_text)
+
+
 async def fetch_prices_for_date(date_str, fund_codes):
+    """Ana kaynak: sfonTurKod=107 (Para Piyasası Şemsiye Fonu) sorgusu, tek
+    tarih, tüm sayfalar gezilir. Bu sorguda görünmeyen fonlar (ör. Serbest
+    Şemsiye Fonu altındaki para piyasası benzeri fonlar) için main() içinde
+    fon-detayli-analiz sayfası yedek olarak kullanılır.
+    """
     from playwright.async_api import async_playwright
 
     url = (
@@ -126,6 +165,19 @@ async def fetch_prices_for_date(date_str, fund_codes):
                 break
             await next_btn.click()
             await page.wait_for_timeout(2000)
+
+        # Yedek yol: ana sorguda bulunamayan (farkli semsiye fon turundeki)
+        # fonlar icin tek tek fon-detayli-analiz sayfasina bak (yavas ve
+        # nazik: en fazla 15 fon, aralarinda bekleme).
+        missing = [c for c in fund_codes if c not in found]
+        for kod in missing[:15]:
+            try:
+                price, name = await fetch_single_fund_detail(page, kod)
+            except RuntimeError:
+                break  # WAF devreye girdi, daha fazla denemeyelim
+            if price is not None:
+                found[kod] = (price, name or kod)
+            await page.wait_for_timeout(2500)
 
         await browser.close()
         return found
