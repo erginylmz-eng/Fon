@@ -1,0 +1,38 @@
+name: TEFAS Günlük Güncelleme
+
+on:
+  schedule:
+    # 09:00 Türkiye saati (UTC+3) = 06:00 UTC, hafta içi (Pzt-Cuma)
+    - cron: '0 6 * * 1-5'
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Repoyu al
+        uses: actions/checkout@v4
+
+      - name: Python kur
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Bağımlılıkları kur
+        run: |
+          pip install -r requirements.txt
+          playwright install --with-deps chromium
+
+      - name: Veriyi çek ve raporu güncelle
+        run: python scripts/fetch_and_build.py
+
+      - name: Değişiklikleri commit'le ve pushla
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/tefas_veri.json docs/index.html
+          git diff --staged --quiet || git commit -m "Günlük TEFAS verisi güncellendi ($(date -u +%F))"
+          git push
