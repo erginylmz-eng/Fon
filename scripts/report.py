@@ -613,9 +613,9 @@ def render_karar_html(rows):
 
   <div class="warn-box">
     <b>Bu bir yatırım tavsiyesi değildir.</b> Aşağıdaki analiz, "Karar Ver" butonuna bastığınızda tarayıcınızdan
-    doğrudan bir yapay zeka modeline (Claude) gönderilen kamuya açık fon verilerine ve modelin genel ekonomik
-    bilgisine dayanır. Kişiselleştirilmiş, profesyonel bir finansal tavsiye değildir; yatırım kararlarınızı
-    vermeden önce kendi araştırmanızı yapın ve gerekirse yetkili bir finansal danışmana başvurun.
+    doğrudan bir yapay zeka modeline (Google Gemini) gönderilen kamuya açık fon verilerine ve modelin genel
+    ekonomik bilgisine dayanır. Kişiselleştirilmiş, profesyonel bir finansal tavsiye değildir; yatırım
+    kararlarınızı vermeden önce kendi araştırmanızı yapın ve gerekirse yetkili bir finansal danışmana başvurun.
   </div>
 
   <div class="card">
@@ -629,11 +629,11 @@ def render_karar_html(rows):
     <div id="result"></div>
     <div id="errBox"></div>
     <div class="help">
-      Bu özellik kendi Claude (Anthropic) API anahtarınızı kullanır — anahtar sadece bu tarayıcıda saklanır,
-      kimseyle paylaşılmaz, doğrudan Anthropic'in sunucusuna gönderilir. Anahtarınız yoksa
-      <a href="https://console.anthropic.com/settings/keys" target="_blank" style="color:var(--accent)">console.anthropic.com</a>
-      üzerinden ücretsiz bir hesapla oluşturabilirsiniz. Her analiz Anthropic hesabınızdan çok küçük bir ücret
-      (bir kaç kuruş civarı) düşer.
+      Bu özellik kendi Google Gemini API anahtarınızı kullanır — anahtar sadece bu tarayıcıda saklanır,
+      kimseyle paylaşılmaz, doğrudan Google'ın sunucusuna gönderilir. Anahtarınız yoksa
+      <a href="https://aistudio.google.com/apikey" target="_blank" style="color:var(--accent)">aistudio.google.com/apikey</a>
+      üzerinden, sadece bir Google hesabıyla, <b>kredi kartı gerekmeden ücretsiz</b> oluşturabilirsiniz. Ücretsiz
+      katmanın günlük kotası bu rapor için fazlasıyla yeterlidir.
     </div>
   </div>
 
@@ -657,24 +657,24 @@ def render_karar_html(rows):
   }}
 
   function getApiKey(forcePrompt) {{
-    let key = localStorage.getItem('tefas_anthropic_key') || '';
+    let key = localStorage.getItem('tefas_gemini_key') || '';
     if (forcePrompt || !key) {{
-      key = prompt('Claude (Anthropic) API anahtarınız (sadece bu tarayıcıda saklanır):', '') || key;
-      if (key) localStorage.setItem('tefas_anthropic_key', key);
+      key = prompt('Google Gemini API anahtarınız (sadece bu tarayıcıda saklanır):', '') || key;
+      if (key) localStorage.setItem('tefas_gemini_key', key);
     }}
     return key;
   }}
 
   function resetApiKey() {{
-    localStorage.removeItem('tefas_anthropic_key');
+    localStorage.removeItem('tefas_gemini_key');
     updateKeyStatus();
     getApiKey(true);
   }}
 
   function updateKeyStatus() {{
-    const key = localStorage.getItem('tefas_anthropic_key') || '';
+    const key = localStorage.getItem('tefas_gemini_key') || '';
     document.getElementById('keyStatus').textContent = key
-      ? 'API anahtarı kayıtlı (sk-ant-...' + key.slice(-4) + ')'
+      ? 'API anahtarı kayıtlı (...' + key.slice(-4) + ')'
       : 'Henüz bir API anahtarı girilmedi.';
   }}
   updateKeyStatus();
@@ -724,18 +724,14 @@ Düz metin olarak yaz (markdown/yıldız kullanma), paragraflar arasında boş s
     btn.disabled = true;
     loading.classList.add('show');
     try {{
-      const res = await fetch('https://api.anthropic.com/v1/messages', {{
+      const model = 'gemini-2.5-flash';
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${{model}}:generateContent?key=${{encodeURIComponent(apiKey)}}`;
+      const res = await fetch(url, {{
         method: 'POST',
-        headers: {{
-          'x-api-key': apiKey,
-          'anthropic-version': '2023-06-01',
-          'anthropic-dangerous-direct-browser-access': 'true',
-          'Content-Type': 'application/json',
-        }},
+        headers: {{ 'Content-Type': 'application/json' }},
         body: JSON.stringify({{
-          model: 'claude-sonnet-5',
-          max_tokens: 1500,
-          messages: [{{ role: 'user', content: buildPrompt() }}],
+          contents: [{{ parts: [{{ text: buildPrompt() }}] }}],
+          generationConfig: {{ maxOutputTokens: 1500 }},
         }}),
       }});
       if (!res.ok) {{
@@ -743,7 +739,8 @@ Düz metin olarak yaz (markdown/yıldız kullanma), paragraflar arasında boş s
         throw new Error('HTTP ' + res.status + ': ' + t.slice(0, 300));
       }}
       const data = await res.json();
-      const text = (data.content || []).map(b => b.text || '').join('\\n').trim();
+      const parts = (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts) || [];
+      const text = parts.map(p => p.text || '').join('\\n').trim();
       result.textContent = text || 'Yanıt alınamadı.';
       result.classList.add('show');
     }} catch (e) {{
