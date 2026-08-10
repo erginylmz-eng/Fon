@@ -33,6 +33,6 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/tefas_veri.json docs/index.html
+          git add data/tefas_veri.json docs/index.html docs/karar.html
           git diff --staged --quiet || git commit -m "Günlük TEFAS verisi güncellendi ($(date -u +%F))"
           git push
