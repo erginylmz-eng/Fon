@@ -2,7 +2,6 @@
 <html lang="tr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>TEFAS Para Piyasası Fonları (Firma Bazlı) - Günlük Getiri Raporu</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <style>
@@ -59,7 +58,7 @@
 </head>
 <body>
   <h1>TEFAS Para Piyasası Fonları — Firma Bazlı Günlük Getiri Raporu</h1>
-  <div class="subtitle">8 kurucu firma · 32 fon (risk 1/7 veya 2/7) · Son güncelleme: </div>
+  <div class="subtitle">8 kurucu firma · 34 fon · Son güncelleme: 2026-08-10</div>
 
   <div class="toc">
     <a href="#Ziraat-Portföy">Ziraat Portföy</a><a href="#İş-Portföy">İş Portföy</a><a href="#Ak-Portföy">Ak Portföy</a><a href="#Garanti-BBVA-Portföy">Garanti BBVA Portföy</a><a href="#Yapı-Kredi-Portföy">Yapı Kredi Portföy</a><a href="#Deniz-Portföy">Deniz Portföy</a><a href="#QNB-Finans-Portföy">QNB Finans Portföy</a><a href="#TEB-Portföy">TEB Portföy</a>
@@ -67,7 +66,7 @@
 
   <div class="summary">
     <div class="stat"><div class="label">Firma Sayısı</div><div class="value">8</div></div>
-    <div class="stat"><div class="label">Toplam Fon</div><div class="value">32</div></div>
+    <div class="stat"><div class="label">Toplam Fon</div><div class="value">34</div></div>
     <div class="stat"><div class="label">Ortalama Günlük Getiri</div><div class="value">0.3219%</div></div>
     <div class="stat"><div class="label">En Yüksek Getiri</div><div class="value">PPI · Yapı Kredi Portföy</div></div>
   </div>
@@ -275,7 +274,7 @@
     </table>
   </div>
   <div class="card" id="Yapı-Kredi-Portföy">
-    <h2>Yapı Kredi Portföy <span class="muted">· 3 fon · ortalama 0.3346%</span></h2>
+    <h2>Yapı Kredi Portföy <span class="muted">· 4 fon · ortalama 0.3346%</span></h2>
     <table>
       <thead>
         <tr>
@@ -313,11 +312,19 @@
           <td class="num"><span class="pos">+0.3204%</span></td>
           <td class="spark"><canvas class="sparkline" data-series='[1.792325, 1.798068]' width="120" height="32"></canvas></td>
         </tr>
+        <tr>
+          <td class="code">YPT</td>
+          <td class="name">YAPI KREDİ PORTFÖY PARA PİYASASI SERBEST (TL) FON</td>
+          <td class="num muted">2/7</td>
+          <td class="num">4,093009</td>
+          <td class="num"><span class="muted">—</span></td>
+          <td class="spark"><canvas class="sparkline" data-series='[4.093009]' width="120" height="32"></canvas></td>
+        </tr>
       </tbody>
     </table>
   </div>
   <div class="card" id="Deniz-Portföy">
-    <h2>Deniz Portföy <span class="muted">· 3 fon · ortalama 0.3210%</span></h2>
+    <h2>Deniz Portföy <span class="muted">· 4 fon · ortalama 0.3210%</span></h2>
     <table>
       <thead>
         <tr>
@@ -354,6 +361,14 @@
           <td class="num">6,004720</td>
           <td class="num"><span class="pos">+0.3166%</span></td>
           <td class="spark"><canvas class="sparkline" data-series='[5.98577, 6.00472]' width="120" height="32"></canvas></td>
+        </tr>
+        <tr>
+          <td class="code">DCB</td>
+          <td class="name">DENİZ PORTFÖY PARA PİYASASI SERBEST (TL) FON</td>
+          <td class="num muted">2/7</td>
+          <td class="num">4,713487</td>
+          <td class="num"><span class="muted">—</span></td>
+          <td class="spark"><canvas class="sparkline" data-series='[4.713487]' width="120" height="32"></canvas></td>
         </tr>
       </tbody>
     </table>
@@ -485,7 +500,8 @@
 
   <footer>
     Veri kaynağı: <a href="https://www.tefas.gov.tr/tr/fon-verileri" style="color:var(--accent)">TEFAS Fon Verileri</a>.
-    Bu rapor bilgilendirme amaçlıdır, yatırım tavsiyesi değildir. Her iş günü otomatik olarak GitHub Actions ile güncellenir.
+    Bu rapor bilgilendirme amaçlıdır, yatırım tavsiyesi değildir.
+    Yeni fon eklemek için fon_listesi.csv dosyasına bir satır ekleyin.
   </footer>
 
 <script>
@@ -515,7 +531,7 @@
         legend: { display: false },
         tooltip: {
           callbacks: {
-            afterLabel: (item) => 'Risk ' + chartRisks[item.dataIndex] + '/7'
+            afterLabel: (item) => chartRisks[item.dataIndex] ? ('Risk ' + chartRisks[item.dataIndex] + '/7') : ''
           }
         }
       }
