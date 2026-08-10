@@ -2,6 +2,7 @@
 <html lang="tr">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>TEFAS Para Piyasası Fonları (Firma Bazlı) - Günlük Getiri Raporu</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <style>
@@ -54,11 +55,28 @@
   .legend { display: flex; gap: 18px; margin-bottom: 12px; font-size: 12px; color: var(--muted); }
   .legend span { display: inline-flex; align-items: center; gap: 6px; }
   .swatch { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+  .addfund-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .addfund-row input {
+    background: var(--bg); border: 1px solid var(--border); color: var(--text);
+    border-radius: 8px; padding: 9px 12px; font-size: 13px; font-family: inherit;
+  }
+  .addfund-row input#newKod { width: 110px; text-transform: uppercase; }
+  .addfund-row input#newSirket { flex: 1; min-width: 160px; }
+  .addfund-row input#newRisk { width: 90px; }
+  .btn {
+    background: var(--accent); color: #fff; border: none; border-radius: 8px;
+    padding: 9px 16px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit;
+  }
+  .btn:hover { opacity: .9; }
+  .btn.secondary { background: transparent; border: 1px solid var(--border); color: var(--text); }
+  .btn-row { display: flex; gap: 8px; margin-top: 10px; }
+  .addfund-help { font-size: 12px; color: var(--muted); margin-top: 10px; line-height: 1.6; }
+  .addfund-help a { color: var(--accent); }
 </style>
 </head>
 <body>
   <h1>TEFAS Para Piyasası Fonları — Firma Bazlı Günlük Getiri Raporu</h1>
-  <div class="subtitle">8 kurucu firma · 34 fon · Son güncelleme: 2026-08-10</div>
+  <div class="subtitle">8 kurucu firma · 34 fon (risk 1/7 veya 2/7) · Son güncelleme: </div>
 
   <div class="toc">
     <a href="#Ziraat-Portföy">Ziraat Portföy</a><a href="#İş-Portföy">İş Portföy</a><a href="#Ak-Portföy">Ak Portföy</a><a href="#Garanti-BBVA-Portföy">Garanti BBVA Portföy</a><a href="#Yapı-Kredi-Portföy">Yapı Kredi Portföy</a><a href="#Deniz-Portföy">Deniz Portföy</a><a href="#QNB-Finans-Portföy">QNB Finans Portföy</a><a href="#TEB-Portföy">TEB Portföy</a>
@@ -67,8 +85,30 @@
   <div class="summary">
     <div class="stat"><div class="label">Firma Sayısı</div><div class="value">8</div></div>
     <div class="stat"><div class="label">Toplam Fon</div><div class="value">34</div></div>
-    <div class="stat"><div class="label">Ortalama Günlük Getiri</div><div class="value">0.3219%</div></div>
+    <div class="stat"><div class="label">Ortalama Günlük Getiri</div><div class="value">0.3218%</div></div>
     <div class="stat"><div class="label">En Yüksek Getiri</div><div class="value">PPI · Yapı Kredi Portföy</div></div>
+  </div>
+
+  <div class="card">
+    <h2>Yeni Fon Ekle</h2>
+    <div class="addfund-row">
+      <input id="newKod" placeholder="Fon Kodu (örn. AAL)" maxlength="10">
+      <input id="newSirket" placeholder="Firma Adı (örn. Ata Portföy)">
+      <input id="newRisk" placeholder="Risk 1-7 (opsiyonel)" maxlength="1">
+      <button class="btn" onclick="addFund()">Listeye Ekle</button>
+    </div>
+    <div class="btn-row">
+      <button class="btn secondary" onclick="runNow()">Raporu Şimdi Güncelle</button>
+      <button class="btn secondary" onclick="resetGithubConfig()">GitHub Bağlantısını Sıfırla</button>
+    </div>
+    <div id="addFundStatus" class="addfund-help"></div>
+    <div class="addfund-help">
+      Fon eklemek için bir GitHub <b>Personal Access Token</b> gerekir (sadece bu tarayıcınızda saklanır,
+      kimseyle paylaşılmaz). Repo → Settings → Developer settings → Personal access tokens →
+      Fine-grained tokens → sadece bu repo, izinler: <b>Contents: Read and write</b>,
+      <b>Actions: Read and write</b>. İlk "Listeye Ekle" veya "Raporu Şimdi Güncelle" tıklamanızda
+      GitHub kullanıcı adı / repo adı / token sorulacak.
+    </div>
   </div>
 
   <div class="card">
@@ -274,7 +314,7 @@
     </table>
   </div>
   <div class="card" id="Yapı-Kredi-Portföy">
-    <h2>Yapı Kredi Portföy <span class="muted">· 4 fon · ortalama 0.3346%</span></h2>
+    <h2>Yapı Kredi Portföy <span class="muted">· 4 fon · ortalama 0.3306%</span></h2>
     <table>
       <thead>
         <tr>
@@ -317,14 +357,14 @@
           <td class="name">YAPI KREDİ PORTFÖY PARA PİYASASI SERBEST (TL) FON</td>
           <td class="num muted">2/7</td>
           <td class="num">4,093009</td>
-          <td class="num"><span class="muted">—</span></td>
-          <td class="spark"><canvas class="sparkline" data-series='[4.093009]' width="120" height="32"></canvas></td>
+          <td class="num"><span class="pos">+0.3185%</span></td>
+          <td class="spark"><canvas class="sparkline" data-series='[4.080014, 4.093009]' width="120" height="32"></canvas></td>
         </tr>
       </tbody>
     </table>
   </div>
   <div class="card" id="Deniz-Portföy">
-    <h2>Deniz Portföy <span class="muted">· 4 fon · ortalama 0.3210%</span></h2>
+    <h2>Deniz Portföy <span class="muted">· 4 fon · ortalama 0.3207%</span></h2>
     <table>
       <thead>
         <tr>
@@ -347,6 +387,14 @@
           <td class="spark"><canvas class="sparkline" data-series='[2.441409, 2.449423]' width="120" height="32"></canvas></td>
         </tr>
         <tr>
+          <td class="code">DCB</td>
+          <td class="name">DENİZ PORTFÖY PARA PİYASASI SERBEST (TL) FON</td>
+          <td class="num muted">2/7</td>
+          <td class="num">4,713487</td>
+          <td class="num"><span class="pos">+0.3198%</span></td>
+          <td class="spark"><canvas class="sparkline" data-series='[4.698459, 4.713487]' width="120" height="32"></canvas></td>
+        </tr>
+        <tr>
           <td class="code">DCN</td>
           <td class="name">DENİZ PORTFÖY ÜÇÜNCÜ PARA PİYASASI (TL) FONU</td>
           <td class="num muted">1/7</td>
@@ -361,14 +409,6 @@
           <td class="num">6,004720</td>
           <td class="num"><span class="pos">+0.3166%</span></td>
           <td class="spark"><canvas class="sparkline" data-series='[5.98577, 6.00472]' width="120" height="32"></canvas></td>
-        </tr>
-        <tr>
-          <td class="code">DCB</td>
-          <td class="name">DENİZ PORTFÖY PARA PİYASASI SERBEST (TL) FON</td>
-          <td class="num muted">2/7</td>
-          <td class="num">4,713487</td>
-          <td class="num"><span class="muted">—</span></td>
-          <td class="spark"><canvas class="sparkline" data-series='[4.713487]' width="120" height="32"></canvas></td>
         </tr>
       </tbody>
     </table>
@@ -500,22 +540,122 @@
 
   <footer>
     Veri kaynağı: <a href="https://www.tefas.gov.tr/tr/fon-verileri" style="color:var(--accent)">TEFAS Fon Verileri</a>.
-    Bu rapor bilgilendirme amaçlıdır, yatırım tavsiyesi değildir.
-    Yeni fon eklemek için fon_listesi.csv dosyasına bir satır ekleyin.
+    Bu rapor bilgilendirme amaçlıdır, yatırım tavsiyesi değildir. Her iş günü otomatik olarak GitHub Actions ile güncellenir.
   </footer>
 
 <script>
+  const REPO_PATH = 'data/fon_listesi.csv';
+  const WORKFLOW_FILE = 'daily-update.yml';
+
+  function getGithubConfig(forcePrompt) {
+    let owner = localStorage.getItem('tefas_gh_owner') || '';
+    let repo = localStorage.getItem('tefas_gh_repo') || '';
+    let token = localStorage.getItem('tefas_gh_token') || '';
+    if (forcePrompt || !owner || !repo || !token) {
+      owner = prompt('GitHub kullanıcı adınız:', owner) || owner;
+      repo = prompt('Repo adı:', repo) || repo;
+      token = prompt('GitHub Personal Access Token (sadece bu tarayıcıda saklanır):', '') || token;
+      if (owner) localStorage.setItem('tefas_gh_owner', owner);
+      if (repo) localStorage.setItem('tefas_gh_repo', repo);
+      if (token) localStorage.setItem('tefas_gh_token', token);
+    }
+    return { owner, repo, token };
+  }
+
+  function resetGithubConfig() {
+    localStorage.removeItem('tefas_gh_owner');
+    localStorage.removeItem('tefas_gh_repo');
+    localStorage.removeItem('tefas_gh_token');
+    getGithubConfig(true);
+  }
+
+  function b64EncodeUtf8(str) {
+    return btoa(unescape(encodeURIComponent(str)));
+  }
+  function b64DecodeUtf8(str) {
+    return decodeURIComponent(escape(atob(str.replace(/\n/g, ''))));
+  }
+
+  async function addFund() {
+    const kod = document.getElementById('newKod').value.trim().toUpperCase();
+    const sirket = document.getElementById('newSirket').value.trim();
+    const risk = document.getElementById('newRisk').value.trim();
+    const status = document.getElementById('addFundStatus');
+    if (!kod || !sirket) {
+      status.innerHTML = '<span class="neg">Fon kodu ve firma adı zorunlu.</span>';
+      return;
+    }
+    const { owner, repo, token } = getGithubConfig(false);
+    if (!owner || !repo || !token) {
+      status.innerHTML = '<span class="neg">GitHub bilgileri eksik.</span>';
+      return;
+    }
+    status.textContent = 'Ekleniyor...';
+    try {
+      const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${REPO_PATH}`;
+      const getRes = await fetch(apiUrl, { headers: { Authorization: `token ${token}` } });
+      if (!getRes.ok) throw new Error('CSV okunamadı (HTTP ' + getRes.status + ')');
+      const getData = await getRes.json();
+      let content = b64DecodeUtf8(getData.content);
+      if (!content.endsWith('\n')) content += '\n';
+      content += `${kod},${sirket},${risk}\n`;
+      const putRes = await fetch(apiUrl, {
+        method: 'PUT',
+        headers: { Authorization: `token ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: `Fon eklendi: ${kod}`,
+          content: b64EncodeUtf8(content),
+          sha: getData.sha,
+        }),
+      });
+      if (!putRes.ok) throw new Error('Kaydedilemedi (HTTP ' + putRes.status + ')');
+      status.innerHTML = `<span class="pos">${kod} listeye eklendi.</span> "Raporu Şimdi Güncelle"ye basarak hemen çekebilir ya da bir sonraki otomatik çalıştırmayı bekleyebilirsiniz.`;
+      document.getElementById('newKod').value = '';
+      document.getElementById('newSirket').value = '';
+      document.getElementById('newRisk').value = '';
+    } catch (e) {
+      status.innerHTML = `<span class="neg">Hata: ${e.message}</span>`;
+    }
+  }
+
+  async function runNow() {
+    const status = document.getElementById('addFundStatus');
+    const { owner, repo, token } = getGithubConfig(false);
+    if (!owner || !repo || !token) {
+      status.innerHTML = '<span class="neg">GitHub bilgileri eksik.</span>';
+      return;
+    }
+    status.textContent = 'Çalıştırma tetikleniyor...';
+    try {
+      const res = await fetch(
+        `https://api.github.com/repos/${owner}/${repo}/actions/workflows/${WORKFLOW_FILE}/dispatches`,
+        {
+          method: 'POST',
+          headers: { Authorization: `token ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ref: 'main' }),
+        }
+      );
+      if (res.status === 204) {
+        status.innerHTML = '<span class="pos">Tetiklendi.</span> Actions sekmesinden takip edebilirsiniz, birkaç dakika sonra bu sayfayı yenileyin.';
+      } else {
+        throw new Error('HTTP ' + res.status);
+      }
+    } catch (e) {
+      status.innerHTML = `<span class="neg">Hata: ${e.message}</span>`;
+    }
+  }
+
   const ctx = document.getElementById('returnChart');
-  const chartRisks = [1, 1, 1, 2, 1, 1, 2, 1, 1, 2, 1, 1, 1, 1, 2, 1, 1, 1, 2, 1, 1, 1, 1, 2, 1, 1, 2, 1, 1, 1, 2, 1];
+  const chartRisks = [1, 1, 1, 2, 1, 1, 2, 1, 1, 2, 1, 1, 1, 1, 2, 1, 1, 2, 1, 2, 2, 1, 1, 1, 1, 2, 1, 1, 2, 1, 1, 1, 2, 1];
   const riskColor = { 1: 'rgba(79,140,255,0.85)', 2: 'rgba(245,166,35,0.85)' };
   const riskColorHover = { 1: 'rgba(79,140,255,1)', 2: 'rgba(245,166,35,1)' };
   new Chart(ctx, {
     type: 'bar',
     data: {
-      labels: ["Yap\u0131 Kredi Portf\u00f6y (PPI)", "Garanti BBVA Portf\u00f6y (GPZ)", "Ziraat Portf\u00f6y (ZBJ)", "Ak Portf\u00f6y (SAP)", "Yap\u0131 Kredi Portf\u00f6y (YVD)", "Deniz Portf\u00f6y (DL2)", "QNB Finans Portf\u00f6y (YMP)", "Ak Portf\u00f6y (ANL)", "\u0130\u015f Portf\u00f6y (IUZ)", "\u0130\u015f Portf\u00f6y (IOP)", "TEB Portf\u00f6y (TKM)", "Ak Portf\u00f6y (BGP)", "Garanti BBVA Portf\u00f6y (GTL)", "Ziraat Portf\u00f6y (TZL)", "\u0130\u015f Portf\u00f6y (IOO)", "Yap\u0131 Kredi Portf\u00f6y (YLB)", "Ziraat Portf\u00f6y (HLL)", "QNB Finans Portf\u00f6y (ENR)", "QNB Finans Portf\u00f6y (FSK)", "Deniz Portf\u00f6y (DCN)", "Garanti BBVA Portf\u00f6y (GNP)", "QNB Finans Portf\u00f6y (FI5)", "TEB Portf\u00f6y (BRG)", "\u0130\u015f Portf\u00f6y (TI1)", "Deniz Portf\u00f6y (DLY)", "Garanti BBVA Portf\u00f6y (GAL)", "TEB Portf\u00f6y (PTL)", "TEB Portf\u00f6y (IGL)", "QNB Finans Portf\u00f6y (OPJ)", "Ak Portf\u00f6y (ALE)", "TEB Portf\u00f6y (PYB)", "TEB Portf\u00f6y (SKL)"],
+      labels: ["Yap\u0131 Kredi Portf\u00f6y (PPI)", "Garanti BBVA Portf\u00f6y (GPZ)", "Ziraat Portf\u00f6y (ZBJ)", "Ak Portf\u00f6y (SAP)", "Yap\u0131 Kredi Portf\u00f6y (YVD)", "Deniz Portf\u00f6y (DL2)", "QNB Finans Portf\u00f6y (YMP)", "Ak Portf\u00f6y (ANL)", "\u0130\u015f Portf\u00f6y (IUZ)", "\u0130\u015f Portf\u00f6y (IOP)", "TEB Portf\u00f6y (TKM)", "Ak Portf\u00f6y (BGP)", "Garanti BBVA Portf\u00f6y (GTL)", "Ziraat Portf\u00f6y (TZL)", "\u0130\u015f Portf\u00f6y (IOO)", "Yap\u0131 Kredi Portf\u00f6y (YLB)", "Ziraat Portf\u00f6y (HLL)", "Deniz Portf\u00f6y (DCB)", "QNB Finans Portf\u00f6y (ENR)", "QNB Finans Portf\u00f6y (FSK)", "Yap\u0131 Kredi Portf\u00f6y (YPT)", "Deniz Portf\u00f6y (DCN)", "Garanti BBVA Portf\u00f6y (GNP)", "QNB Finans Portf\u00f6y (FI5)", "TEB Portf\u00f6y (BRG)", "\u0130\u015f Portf\u00f6y (TI1)", "Deniz Portf\u00f6y (DLY)", "Garanti BBVA Portf\u00f6y (GAL)", "TEB Portf\u00f6y (PTL)", "TEB Portf\u00f6y (IGL)", "QNB Finans Portf\u00f6y (OPJ)", "Ak Portf\u00f6y (ALE)", "TEB Portf\u00f6y (PYB)", "TEB Portf\u00f6y (SKL)"],
       datasets: [{
         label: 'Günlük Getiri (%)',
-        data: [0.3547, 0.3368, 0.3303, 0.329, 0.3287, 0.3283, 0.3269, 0.3264, 0.3247, 0.3235, 0.3224, 0.3223, 0.3219, 0.3218, 0.3206, 0.3204, 0.32, 0.319, 0.3187, 0.3181, 0.3176, 0.3173, 0.317, 0.3167, 0.3166, 0.3159, 0.3152, 0.3149, 0.3149, 0.314, 0.3138, 0.3128],
+        data: [0.3547, 0.3368, 0.3303, 0.329, 0.3287, 0.3283, 0.3269, 0.3264, 0.3247, 0.3235, 0.3224, 0.3223, 0.3219, 0.3218, 0.3206, 0.3204, 0.32, 0.3198, 0.319, 0.3187, 0.3185, 0.3181, 0.3176, 0.3173, 0.317, 0.3167, 0.3166, 0.3159, 0.3152, 0.3149, 0.3149, 0.314, 0.3138, 0.3128],
         backgroundColor: chartRisks.map(r => riskColor[r] || 'rgba(139,147,167,0.7)'),
         hoverBackgroundColor: chartRisks.map(r => riskColorHover[r] || 'rgba(139,147,167,0.9)'),
         borderRadius: 4,
@@ -531,7 +671,7 @@
         legend: { display: false },
         tooltip: {
           callbacks: {
-            afterLabel: (item) => chartRisks[item.dataIndex] ? ('Risk ' + chartRisks[item.dataIndex] + '/7') : ''
+            afterLabel: (item) => 'Risk ' + chartRisks[item.dataIndex] + '/7'
           }
         }
       }
