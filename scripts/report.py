@@ -9,6 +9,30 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_FILE = os.path.join(BASE_DIR, "data", "tefas_veri.json")
 REPORT_FILE = os.path.join(BASE_DIR, "docs", "index.html")
 KARAR_FILE = os.path.join(BASE_DIR, "docs", "karar.html")
+VALOR_FILE = os.path.join(BASE_DIR, "data", "fon_valor.csv")
+
+
+def load_fon_valor():
+    """data/fon_valor.csv -> {kod: {platform, alis_valor, satis_valor}}
+    TEFAS'ta işlem görüp görmediği ve alış/satış valörü (T0/T1/T2) bilgisi.
+    Elle güncellenen bir referans dosyasıdır (fiyat gibi her gün değişmez).
+    """
+    import csv
+    out = {}
+    if not os.path.exists(VALOR_FILE):
+        return out
+    with open(VALOR_FILE, "r", encoding="utf-8") as f:
+        for row in csv.DictReader(f):
+            kod = (row.get("kod") or "").strip().upper()
+            if not kod:
+                continue
+            out[kod] = {
+                "platform": (row.get("platform") or "").strip(),
+                "alis_valor": (row.get("alis_valor") or "-").strip(),
+                "satis_valor": (row.get("satis_valor") or "-").strip(),
+                "kaynak": (row.get("kaynak") or "").strip(),
+            }
+    return out
 
 SIRKET_SIRASI = [
     "Ziraat Portföy", "İş Portföy", "Ak Portföy", "Garanti BBVA Portföy",
@@ -39,6 +63,7 @@ def add_day(data, date_str, prices):
 
 
 def compute_rows(data):
+    fon_valor = load_fon_valor()
     rows = []
     for code, fund in sorted(data["fonlar"].items()):
         hist = fund["gecmis"]
@@ -50,6 +75,7 @@ def compute_rows(data):
         if prev and prev["fiyat"] > 0:
             daily_return = (last["fiyat"] - prev["fiyat"]) / prev["fiyat"] * 100
         recent = hist[-30:]
+        valor = fon_valor.get(code, {})
         rows.append({
             "kod": code,
             "ad": fund["ad"],
@@ -60,6 +86,10 @@ def compute_rows(data):
             "gunluk_getiri": daily_return,
             "seri": [h["fiyat"] for h in recent],
             "hist": [[h["tarih"], h["fiyat"]] for h in hist],
+            "platform": valor.get("platform", ""),
+            "alis_valor": valor.get("alis_valor", "-"),
+            "satis_valor": valor.get("satis_valor", "-"),
+            "valor_kaynak": valor.get("kaynak", ""),
         })
     return rows
 
@@ -110,6 +140,7 @@ def render_html(data, rows):
             <th style="text-align:right">Fiyat (Birim Pay)</th>
             <th style="text-align:right" id="col-{_slug(sirket)}">Günlük Getiri</th>
             <th style="text-align:right">Grafik</th>
+            <th style="text-align:right">Valör (Alış/Satış)</th>
           </tr>
         </thead>
         <tbody id="tbody-{_slug(sirket)}"></tbody>
@@ -123,7 +154,9 @@ def render_html(data, rows):
     funds_json = json.dumps([
         {
             "kod": r["kod"], "ad": r["ad"], "sirket": r["sirket"], "risk": r["risk"],
-            "hist": r["hist"],
+            "hist": r["hist"], "platform": r.get("platform", ""),
+            "alisValor": r.get("alis_valor", "-"), "satisValor": r.get("satis_valor", "-"),
+            "valorKaynak": r.get("valor_kaynak", ""),
         }
         for r in rows
     ], ensure_ascii=False)
@@ -476,7 +509,7 @@ def render_html(data, rows):
 
     const computed = FUNDS.map(f => {{
       const {{ ret, fiyat, series }} = computeForPeriod(f.hist, days);
-      return {{ kod: f.kod, ad: f.ad, sirket: f.sirket, risk: f.risk, ret, fiyat, series }};
+      return {{ kod: f.kod, ad: f.ad, sirket: f.sirket, risk: f.risk, ret, fiyat, series, platform: f.platform, alisValor: f.alisValor, satisValor: f.satisValor, valorKaynak: f.valorKaynak }};
     }});
 
     const withRet = computed.filter(f => f.ret !== null);
@@ -514,6 +547,7 @@ def render_html(data, rows):
           <td class="num">${{fmtPrice(r.fiyat)}}</td>
           <td class="num">${{fmtPct(r.ret)}}</td>
           <td class="spark"><canvas class="sparkline" data-kod="${{r.kod}}" width="120" height="32"></canvas></td>
+          <td class="num muted" title="${{(r.platform || '') + (r.valorKaynak ? ' · Kaynak: ' + r.valorKaynak : '')}}">${{r.alisValor === '-' ? '—' : (r.alisValor + ' / ' + r.satisValor)}}</td>
         </tr>`).join('');
       rows.forEach(r => {{
         const canvas = tbody.querySelector(`canvas[data-kod="${{r.kod}}"]`);
