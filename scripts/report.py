@@ -31,6 +31,7 @@ def load_fon_valor():
                 "alis_valor": (row.get("alis_valor") or "-").strip(),
                 "satis_valor": (row.get("satis_valor") or "-").strip(),
                 "kaynak": (row.get("kaynak") or "").strip(),
+                "url": (row.get("url") or "").strip(),
             }
     return out
 
@@ -90,6 +91,7 @@ def compute_rows(data):
             "alis_valor": valor.get("alis_valor", "-"),
             "satis_valor": valor.get("satis_valor", "-"),
             "valor_kaynak": valor.get("kaynak", ""),
+            "valor_url": valor.get("url", ""),
         })
     return rows
 
@@ -156,7 +158,7 @@ def render_html(data, rows):
             "kod": r["kod"], "ad": r["ad"], "sirket": r["sirket"], "risk": r["risk"],
             "hist": r["hist"], "platform": r.get("platform", ""),
             "alisValor": r.get("alis_valor", "-"), "satisValor": r.get("satis_valor", "-"),
-            "valorKaynak": r.get("valor_kaynak", ""),
+            "valorKaynak": r.get("valor_kaynak", ""), "valorUrl": r.get("valor_url", ""),
         }
         for r in rows
     ], ensure_ascii=False)
@@ -202,6 +204,9 @@ def render_html(data, rows):
   td {{ padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }}
   tr:hover td {{ background: rgba(255,255,255,0.02); }}
   .code {{ font-weight: 700; color: var(--accent); }}
+  .code-link {{ font-weight: 700; color: var(--accent); text-decoration: none; }}
+  .code-link:hover {{ text-decoration: underline; }}
+  #returnChart {{ cursor: pointer; }}
   .name {{ color: var(--text); }}
   .num {{ text-align: right; font-variant-numeric: tabular-nums; }}
   .pos {{ color: var(--pos); font-weight: 600; }}
@@ -477,8 +482,21 @@ def render_html(data, rows):
         legend: {{ display: false }},
         tooltip: {{ callbacks: {{ afterLabel: (item) => {{
           const risks = item.chart.__risks || [];
-          return risks[item.dataIndex] ? ('Risk ' + risks[item.dataIndex] + '/7') : '';
+          const urls = item.chart.__urls || [];
+          const risk = risks[item.dataIndex] ? ('Risk ' + risks[item.dataIndex] + '/7') : '';
+          const link = urls[item.dataIndex] ? 'Fon sayfası için tıklayın' : '';
+          return [risk, link].filter(Boolean);
         }} }} }}
+      }},
+      onClick: (evt, elements, chart) => {{
+        if (!elements.length) return;
+        const url = (chart.__urls || [])[elements[0].index];
+        if (url) window.open(url, '_blank', 'noopener');
+      }},
+      onHover: (evt, elements, chart) => {{
+        const urls = chart.__urls || [];
+        const hasUrl = elements.length && urls[elements[0].index];
+        evt.native.target.style.cursor = hasUrl ? 'pointer' : 'default';
       }}
     }}
   }});
@@ -509,7 +527,7 @@ def render_html(data, rows):
 
     const computed = FUNDS.map(f => {{
       const {{ ret, fiyat, series }} = computeForPeriod(f.hist, days);
-      return {{ kod: f.kod, ad: f.ad, sirket: f.sirket, risk: f.risk, ret, fiyat, series, platform: f.platform, alisValor: f.alisValor, satisValor: f.satisValor, valorKaynak: f.valorKaynak }};
+      return {{ kod: f.kod, ad: f.ad, sirket: f.sirket, risk: f.risk, ret, fiyat, series, platform: f.platform, alisValor: f.alisValor, satisValor: f.satisValor, valorKaynak: f.valorKaynak, valorUrl: f.valorUrl }};
     }});
 
     const withRet = computed.filter(f => f.ret !== null);
@@ -530,6 +548,7 @@ def render_html(data, rows):
     mainChart.data.datasets[0].backgroundColor = risks.map(r => riskColor[r] || 'rgba(139,147,167,0.7)');
     mainChart.data.datasets[0].hoverBackgroundColor = risks.map(r => riskColorHover[r] || 'rgba(139,147,167,0.9)');
     mainChart.__risks = risks;
+    mainChart.__urls = chartFunds.map(f => f.valorUrl || '');
     mainChart.update();
 
     const bySirket = {{}};
@@ -541,7 +560,7 @@ def render_html(data, rows):
       if (!tbody) return;
       tbody.innerHTML = rows.map(r => `
         <tr>
-          <td class="code">${{r.kod}}</td>
+          <td class="code">${{r.valorUrl ? `<a href="${{r.valorUrl}}" target="_blank" rel="noopener" class="code-link" title="Fonun kendi sitesindeki sayfasını aç">${{r.kod}}</a>` : r.kod}}</td>
           <td class="name">${{r.ad}}</td>
           <td class="num muted">${{r.risk ? r.risk + '/7' : '—'}}</td>
           <td class="num">${{fmtPrice(r.fiyat)}}</td>
