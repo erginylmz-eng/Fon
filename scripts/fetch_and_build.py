@@ -248,6 +248,10 @@ async def main():
     with open(report.KARAR_FILE, "w", encoding="utf-8") as f:
         f.write(karar_html)
 
+    karsilastir_html = report.render_karsilastir_html(rows)
+    with open(report.KARSILASTIR_FILE, "w", encoding="utf-8") as f:
+        f.write(karsilastir_html)
+
     print(f"\nRapor guncellendi ({used_date}), {len(rows)} fon:")
     for r in sorted(rows, key=lambda r: (r["sirket"], -(r["gunluk_getiri"] or -999))):
         gr = f"{r['gunluk_getiri']:.4f}%" if r["gunluk_getiri"] is not None else "—"
