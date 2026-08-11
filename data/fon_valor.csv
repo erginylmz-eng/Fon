@@ -1,35 +1,35 @@
-kod,platform,alis_valor,satis_valor,kaynak
-HLL,İşlem Görmüyor,T0,T0,Ziraat Portföy sitesi
-TZL,İşlem Görmüyor,T0,T0,Ziraat Portföy sitesi
-ZBJ,İşlem Görüyor,T0,T0,Ziraat Portföy sitesi
-IOO,İşlem Görüyor,T0,T0,İş Portföy sitesi
-IOP,İşlem Görmüyor,T0,T0,İş Portföy sitesi
-IUZ,İşlem Görmüyor,T0,T0,İş Portföy sitesi
-TI1,İşlem Görmüyor,T0,T0,İş Portföy sitesi
-ALE,İşlem Görmüyor,T0,T0,Ak Portföy sitesi
-ANL,İşlem Görmüyor,T0,T0,Ak Portföy sitesi
-BGP,İşlem Görüyor,T0,T0,Ak Portföy sitesi
-SAP,İşlem Görmüyor,T0,T0,Ak Portföy sitesi
-GAL,İşlem Görmüyor,T0,T0,Garanti BBVA Portföy sitesi
-GNP,İşlem Görmüyor,T0,T0,Garanti BBVA Portföy sitesi
-GPZ,İşlem Görüyor,T0,T0,Garanti BBVA Portföy sitesi
-GTL,İşlem Görmüyor,T0,T0,Garanti BBVA Portföy sitesi
-PPI,İşlem Görüyor,T0,T0,Yapı Kredi Portföy sitesi
-YLB,İşlem Görmüyor,T0,T0,Yapı Kredi Portföy sitesi
-YVD,İşlem Görmüyor,T0,T0,Yapı Kredi Portföy sitesi
-DCN,İşlem Görmüyor,T0,T0,Deniz Portföy sitesi
-DL2,İşlem Görüyor,T0,T0,Deniz Portföy sitesi
-DLY,İşlem Görüyor,T0,T0,Deniz Portföy sitesi
-ENR,İşlem Görmüyor,T0,T0,QNB Finans Portföy sitesi
-FI5,İşlem Görmüyor,T0,T0,QNB Finans Portföy sitesi
-FSK,İşlem Görüyor,T0,T0,QNB Finans Portföy sitesi
-OPJ,İşlem Görmüyor,T0,T0,QNB Finans Portföy sitesi
-YMP,İşlem Görmüyor,T0,T0,QNB Finans Portföy sitesi
-BRG,İşlem Görmüyor,T0,T0,TEB Portföy sitesi
-IGL,İşlem Görmüyor,T0,T0,TEB Portföy sitesi
-PTL,İşlem Görmüyor,T0,T0,TEB Portföy sitesi
-PYB,İşlem Görmüyor,T0,T0,TEB Portföy sitesi
-SKL,İşlem Görmüyor,T0,T0,TEB Portföy sitesi
-TKM,İşlem Görmüyor,T0,T0,TEB Portföy sitesi
-DCB,İşlem Görüyor,T0,T0,Deniz Portföy sitesi
-YPT,İşlem Görmüyor,T0,T0,Yapı Kredi Portföy sitesi
+kod,platform,alis_valor,satis_valor,kaynak,url
+HLL,İşlem Görmüyor,T0,T0,Ziraat Portföy sitesi,https://www.ziraatportfoy.com.tr/hll-ziraat-portfoy-halkbank-para-piyasasi-tl-fonu
+TZL,İşlem Görmüyor,T0,T0,Ziraat Portföy sitesi,https://www.ziraatportfoy.com.tr/tzl-ziraat-portfoy-para-piyasasi-tl-fonu
+ZBJ,İşlem Görüyor,T0,T0,Ziraat Portföy sitesi,https://www.ziraatportfoy.com.tr/zbj-ziraat-portfoy-basak-para-piyasasi-tl-fonu
+IOO,İşlem Görüyor,T0,T0,İş Portföy sitesi,https://www.isportfoy.com.tr/is-portfoy-ikinci-para-piyasasi-tl-fonu
+IOP,İşlem Görmüyor,T0,T0,İş Portföy sitesi,https://www.isportfoy.com.tr/is-portfoy-odeabank-para-piyasasi-tl-fonu
+IUZ,İşlem Görmüyor,T0,T0,İş Portföy sitesi,https://www.isportfoy.com.tr/is-portfoy-anadolubank-para-piyasasi-tl-fonu
+TI1,İşlem Görmüyor,T0,T0,İş Portföy sitesi,https://www.isportfoy.com.tr/is-portfoy-para-piyasasi-tl-fonu
+ALE,İşlem Görmüyor,T0,T0,Ak Portföy sitesi,https://www.akportfoy.com.tr/tr/fon/ak-portfoy-para-piyasasi-(tl)-fonu
+ANL,İşlem Görmüyor,T0,T0,Ak Portföy sitesi,https://www.akportfoy.com.tr/tr/fon/ak-portfoy-alternatif-bank-para-piyasasi-(tl)-fonu
+BGP,İşlem Görüyor,T0,T0,Ak Portföy sitesi,https://www.akportfoy.com.tr/tr/fon/BGP-ak-portfoy-ucuncu-para-piyasasi-(tl)-fonu
+SAP,İşlem Görmüyor,T0,T0,Ak Portföy sitesi,https://www.akportfoy.com.tr/tr/fon/SAP-ak-portfoy-sekerbank-para-piyasasi-tl-fonu
+GAL,İşlem Görmüyor,T0,T0,Garanti BBVA Portföy sitesi,https://www.garantibbvaportfoy.com.tr/ikinci-para-piyasasi-fonu
+GNP,İşlem Görmüyor,T0,T0,Garanti BBVA Portföy sitesi,https://www.garantibbvaportfoy.com.tr/nema-para-piyasasi-tl-fonu
+GPZ,İşlem Görüyor,T0,T0,Garanti BBVA Portföy sitesi,https://www.garantibbvaportfoy.com.tr/ucuncu-para-piyasasi-fonu
+GTL,İşlem Görmüyor,T0,T0,Garanti BBVA Portföy sitesi,https://www.garantibbvaportfoy.com.tr/birinci-para-piyasasi-fonu
+PPI,İşlem Görüyor,T0,T0,Yapı Kredi Portföy sitesi,https://www.yapikrediportfoy.com.tr/urun-ve-hizmetlerimiz/yatirim-fonlari/para-piyasasi-stratejisi/ppi
+YLB,İşlem Görmüyor,T0,T0,Yapı Kredi Portföy sitesi,https://www.yapikrediportfoy.com.tr/urun-ve-hizmetlerimiz/yatirim-fonlari/para-piyasasi-stratejisi/ylb
+YVD,İşlem Görmüyor,T0,T0,Yapı Kredi Portföy sitesi,https://www.yapikrediportfoy.com.tr/urun-ve-hizmetlerimiz/yatirim-fonlari/para-piyasasi-stratejisi/yvd
+DCN,İşlem Görmüyor,T0,T0,Deniz Portföy sitesi,https://www.denizportfoy.com/Fon/Detail?id=193&code=DCN
+DL2,İşlem Görüyor,T0,T0,Deniz Portföy sitesi,https://www.denizportfoy.com/Fon/Detail?id=134&code=DL2
+DLY,İşlem Görüyor,T0,T0,Deniz Portföy sitesi,https://www.denizportfoy.com/Fon/Detail?id=1&code=DLY
+ENR,İşlem Görmüyor,T0,T0,QNB Finans Portföy sitesi,https://www.qnbportfoy.com.tr/tr-TR/FonDetay/ENR
+FI5,İşlem Görmüyor,T0,T0,QNB Finans Portföy sitesi,https://www.qnbportfoy.com.tr/tr-TR/FonDetay/FI5
+FSK,İşlem Görüyor,T0,T0,QNB Finans Portföy sitesi,https://www.qnbportfoy.com.tr/tr-TR/FonDetay/FSK
+OPJ,İşlem Görmüyor,T0,T0,QNB Finans Portföy sitesi,https://www.qnbportfoy.com.tr/tr-TR/FonDetay/OPJ
+YMP,İşlem Görmüyor,T0,T0,QNB Finans Portföy sitesi,https://www.qnb.com.tr/kendim-icin/yatirim/fonlar/yatirim-fonlari/qnb-portfoy-ymk-para-piyasasi-tl-ozel-fon-ymp
+BRG,İşlem Görmüyor,T0,T0,TEB Portföy sitesi,https://www.tebportfoy.com.tr/yatirim-fonlari/teb-portfoy-burgan-bank-para-piyasasi-tl-fonu
+IGL,İşlem Görmüyor,T0,T0,TEB Portföy sitesi,https://www.tebportfoy.com.tr/yatirim-fonlari/teb-portfoy-ing-bank-para-piyasasi-tl-fonu
+PTL,İşlem Görmüyor,T0,T0,TEB Portföy sitesi,https://www.tebportfoy.com.tr/yatirim-fonlari/teb-portfoy-ikinci-para-piyasasi-tl-fonu
+PYB,İşlem Görmüyor,T0,T0,KAP (TEB sitesinde aktif sayfası yok),https://www.kap.org.tr/tr/fon-bilgileri/ozet/pyb-teb-portfoy-alternatifbank-para-piyasasi-tl-fonu
+SKL,İşlem Görmüyor,T0,T0,KAP (TEB sitesinde aktif sayfası yok),https://kap.org.tr/en/fon-bilgileri/ozet/skl-teb-portfoy-sekerbank-para-piyasasi-tl-fonu
+TKM,İşlem Görmüyor,T0,T0,TEB Portföy sitesi,https://www.tebportfoy.com.tr/yatirim-fonlari/teb-portfoy-para-piyasasi-tl-fonu
+DCB,İşlem Görüyor,T0,T0,Deniz Portföy sitesi,https://www.denizportfoy.com/Fon/Detail?id=65&code=DCB
+YPT,İşlem Görmüyor,T0,T0,Yapı Kredi Portföy sitesi,https://www.yapikrediportfoy.com.tr/urun-ve-hizmetlerimiz/yatirim-fonlari/para-piyasasi-stratejisi/ypt
