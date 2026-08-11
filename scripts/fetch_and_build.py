@@ -113,7 +113,7 @@ def parse_detail_page(text):
 async def fetch_single_fund_detail(page, kod):
     """Tek bir fon için fon-detayli-analiz sayfasından fiyat/ad çeker (yedek yol)."""
     await page.goto(f"https://www.tefas.gov.tr/tr/fon-detayli-analiz/{kod}",
-                     wait_until="networkidle", timeout=45000)
+                     wait_until="networkidle", timeout=60000)
     await page.wait_for_timeout(2500)
     body_text = await page.inner_text("body")
     if "Request Rejected" in body_text:
@@ -126,8 +126,15 @@ async def fetch_prices_for_date(date_str, fund_codes):
     tarih, tüm sayfalar gezilir. Bu sorguda görünmeyen fonlar (ör. Serbest
     Şemsiye Fonu altındaki para piyasası benzeri fonlar) için main() içinde
     fon-detayli-analiz sayfası yedek olarak kullanılır.
+
+    NOT: TEFAS'in bot korumasi (WAF) bulut IP'lerini (GitHub Actions dahil)
+    bazen yavaslatiyor/engelliyor; bu da sayfanin "main" elementinin zamaninda
+    yuklenmemesine (Playwright TimeoutError) yol acabiliyor. Bu fonksiyon bu
+    durumu bir kez tekrar deneyip yine de basarisiz olursa anlasilir bir
+    RuntimeError'a ceviriyor, boylece main() temiz bir hata mesajiyla cikiyor
+    ve mevcut veri/rapor bozulmadan kaliyor.
     """
-    from playwright.async_api import async_playwright
+    from playwright.async_api import async_playwright, TimeoutError as PlaywrightTimeoutError
 
     url = (
         f"https://www.tefas.gov.tr/tr/fon-verileri?fundType=YAT&sfonTurKod=107"
@@ -137,50 +144,63 @@ async def fetch_prices_for_date(date_str, fund_codes):
         browser = await p.chromium.launch(headless=True)
         context = await browser.new_context(user_agent=USER_AGENT, locale="tr-TR")
         page = await context.new_page()
-        await page.goto(url, wait_until="networkidle", timeout=45000)
-        await page.wait_for_timeout(3000)
+        page.set_default_timeout(60000)
+        try:
+            await page.goto(url, wait_until="networkidle", timeout=60000)
+            await page.wait_for_timeout(3000)
 
-        body_text = await page.inner_text("body")
-        if "Request Rejected" in body_text:
+            body_text = await page.inner_text("body")
+            if "Request Rejected" in body_text:
+                raise RuntimeError("TEFAS bot korumasi (WAF) istegi reddetti (Request Rejected).")
+            if "sonuç bulunamadı" in body_text or "eşleşen fon verisi bulunamadı" in body_text:
+                return None  # o gun veri yok (tatil vb.)
+
+            found = {}
+            for _ in range(6):  # en fazla 6 sayfa gez (81+ fon icin yeterli)
+                try:
+                    main_text = await page.inner_text("main", timeout=60000)
+                except PlaywrightTimeoutError:
+                    # Sayfa gec yuklenmis olabilir, bir kez daha dene
+                    await page.wait_for_timeout(3000)
+                    main_text = await page.inner_text("main", timeout=60000)
+                found.update(parse_rows(main_text, fund_codes))
+                if len(found) >= len(fund_codes):
+                    break
+                next_btn = page.get_by_role("button", name="Sonraki")
+                if await next_btn.count() == 0:
+                    break
+                try:
+                    is_disabled = await next_btn.get_attribute("disabled")
+                except Exception:
+                    is_disabled = None
+                if is_disabled is not None:
+                    break
+                await next_btn.click()
+                await page.wait_for_timeout(2000)
+
+            # Yedek yol: ana sorguda bulunamayan (farkli semsiye fon turundeki)
+            # fonlar icin tek tek fon-detayli-analiz sayfasina bak (yavas ve
+            # nazik: en fazla 15 fon, aralarinda bekleme).
+            missing = [c for c in fund_codes if c not in found]
+            for kod in missing[:15]:
+                try:
+                    price, name = await fetch_single_fund_detail(page, kod)
+                except (RuntimeError, PlaywrightTimeoutError):
+                    break  # WAF devreye girdi veya zaman asimi, daha fazla denemeyelim
+                if price is not None:
+                    found[kod] = (price, name or kod)
+                await page.wait_for_timeout(2500)
+
+            return found
+        except PlaywrightTimeoutError as e:
+            raise RuntimeError(
+                "TEFAS sayfasi zaman asimina ugradi (60sn, bir tekrar denemesine ragmen) - "
+                "TEFAS'in bot korumasi (WAF) GitHub Actions bulut IP'sini engelliyor olabilir. "
+                "Bu genelde gecici bir durumdur, bir sonraki otomatik calistirmada duzelebilir. "
+                f"(Teknik detay: {e.__class__.__name__})"
+            )
+        finally:
             await browser.close()
-            raise RuntimeError("TEFAS bot korumasi (WAF) istegi reddetti (Request Rejected).")
-        if "sonuç bulunamadı" in body_text or "eşleşen fon verisi bulunamadı" in body_text:
-            await browser.close()
-            return None  # o gun veri yok (tatil vb.)
-
-        found = {}
-        for _ in range(6):  # en fazla 6 sayfa gez (81+ fon icin yeterli)
-            main_text = await page.inner_text("main")
-            found.update(parse_rows(main_text, fund_codes))
-            if len(found) >= len(fund_codes):
-                break
-            next_btn = page.get_by_role("button", name="Sonraki")
-            if await next_btn.count() == 0:
-                break
-            try:
-                is_disabled = await next_btn.get_attribute("disabled")
-            except Exception:
-                is_disabled = None
-            if is_disabled is not None:
-                break
-            await next_btn.click()
-            await page.wait_for_timeout(2000)
-
-        # Yedek yol: ana sorguda bulunamayan (farkli semsiye fon turundeki)
-        # fonlar icin tek tek fon-detayli-analiz sayfasina bak (yavas ve
-        # nazik: en fazla 15 fon, aralarinda bekleme).
-        missing = [c for c in fund_codes if c not in found]
-        for kod in missing[:15]:
-            try:
-                price, name = await fetch_single_fund_detail(page, kod)
-            except RuntimeError:
-                break  # WAF devreye girdi, daha fazla denemeyelim
-            if price is not None:
-                found[kod] = (price, name or kod)
-            await page.wait_for_timeout(2500)
-
-        await browser.close()
-        return found
 
 
 async def main():
