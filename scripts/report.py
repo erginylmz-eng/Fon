@@ -9,6 +9,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_FILE = os.path.join(BASE_DIR, "data", "tefas_veri.json")
 REPORT_FILE = os.path.join(BASE_DIR, "docs", "index.html")
 KARAR_FILE = os.path.join(BASE_DIR, "docs", "karar.html")
+KARSILASTIR_FILE = os.path.join(BASE_DIR, "docs", "karsilastir.html")
 VALOR_FILE = os.path.join(BASE_DIR, "data", "fon_valor.csv")
 
 
@@ -260,8 +261,9 @@ def render_html(data, rows):
   <h1>TEFAS Para Piyasası Fonları — Firma Bazlı Günlük Getiri Raporu</h1>
   <div class="subtitle">{n_sirket} kurucu firma · {n_funds} fon (risk 1/7 veya 2/7) · Son güncelleme: {son_tarih}</div>
 
-  <div style="margin-bottom:20px">
+  <div style="margin-bottom:20px; display:flex; gap:10px; flex-wrap:wrap;">
     <a href="karar.html" class="btn" style="text-decoration:none; display:inline-block;">Yatırım Önerisi (AI Analiz)</a>
+    <a href="karsilastir.html" class="btn" style="text-decoration:none; display:inline-block; background:transparent; border:1px solid var(--border); color:var(--text);">3 Fon Karşılaştır</a>
   </div>
 
   <div class="toc">
@@ -809,6 +811,297 @@ Düz metin olarak yaz (markdown/yıldız kullanma), paragraflar arasında boş s
     return html
 
 
+def render_karsilastir_html(rows):
+    funds_json = json.dumps([
+        {
+            "kod": r["kod"], "ad": r["ad"], "sirket": r["sirket"], "risk": r["risk"],
+            "hist": r["hist"], "alisValor": r.get("alis_valor", "-"), "satisValor": r.get("satis_valor", "-"),
+            "valorKaynak": r.get("valor_kaynak", ""), "valorUrl": r.get("valor_url", ""),
+        }
+        for r in rows
+    ], ensure_ascii=False)
+
+    html = f"""<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fon Karşılaştırma - TEFAS Para Piyasası Fonları</title>
+<style>
+  :root {{
+    --bg: #0f1420; --card: #171d2b; --border: #2a3243; --text: #e6e9ef;
+    --muted: #8b93a7; --pos: #3ddc84; --neg: #ff5c72; --accent: #4f8cff; --warn: #f5a623;
+  }}
+  * {{ box-sizing: border-box; }}
+  body {{
+    margin: 0; padding: 32px; background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    max-width: 980px;
+  }}
+  h1 {{ font-size: 22px; margin: 0 0 4px 0; }}
+  .subtitle {{ color: var(--muted); font-size: 13px; margin-bottom: 20px; }}
+  a.back {{ color: var(--accent); font-size: 13px; text-decoration: none; }}
+  a.back:hover {{ text-decoration: underline; }}
+  .card {{
+    background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+    padding: 20px; margin-bottom: 20px;
+  }}
+  .card h2 {{ font-size: 15px; margin: 0 0 14px 0; font-weight: 700; }}
+  .select-row {{ display: flex; gap: 12px; flex-wrap: wrap; }}
+  .select-col {{ flex: 1; min-width: 220px; }}
+  .select-col label {{ display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; }}
+  select {{
+    width: 100%; background: var(--bg); color: var(--text); border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px 12px; font-size: 13px; font-family: inherit;
+  }}
+  table {{ width: 100%; border-collapse: collapse; font-size: 13px; }}
+  th, td {{ padding: 10px 12px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: middle; }}
+  th {{ color: var(--muted); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: .03em; }}
+  .rowlabel {{ color: var(--muted); font-size: 12px; white-space: nowrap; }}
+  .num {{ text-align: right; font-variant-numeric: tabular-nums; }}
+  .pos {{ color: var(--pos); font-weight: 600; }}
+  .neg {{ color: var(--neg); font-weight: 600; }}
+  .muted {{ color: var(--muted); }}
+  .fund-th {{ text-align: right; }}
+  .fund-name {{ font-weight: 700; color: var(--accent); text-decoration: none; display: block; }}
+  .fund-name:hover {{ text-decoration: underline; }}
+  .fund-sirket {{ color: var(--muted); font-weight: 400; font-size: 11px; text-transform: none; letter-spacing: 0; }}
+  .badge-win {{
+    display: inline-block; background: var(--accent); color: #fff; font-size: 10px; font-weight: 700;
+    padding: 2px 8px; border-radius: 999px; margin-top: 4px; letter-spacing: .03em;
+  }}
+  td.winner, th.winner {{ background: rgba(79,140,255,0.08); }}
+  .empty-msg {{ color: var(--muted); font-size: 13px; padding: 20px 0; text-align: center; }}
+  .fon-link {{ color: var(--accent); text-decoration: none; font-size: 12px; }}
+  .fon-link:hover {{ text-decoration: underline; }}
+</style>
+</head>
+<body>
+  <a class="back" href="index.html">&larr; Rapora Dön</a>
+  <h1>Fon Karşılaştırma</h1>
+  <div class="subtitle">Aşağıdan 3 fon seçin; son 5 günlük fiyat, günlük/haftalık/aylık getiri, risk ve valör bilgileri karşılaştırılsın. En yüksek getiriye sahip fon otomatik olarak öne çıkarılır.</div>
+
+  <div class="card">
+    <h2>Karşılaştırılacak Fonlar</h2>
+    <div class="select-row">
+      <div class="select-col">
+        <label>1. Fon</label>
+        <select id="sel0"></select>
+      </div>
+      <div class="select-col">
+        <label>2. Fon</label>
+        <select id="sel1"></select>
+      </div>
+      <div class="select-col">
+        <label>3. Fon</label>
+        <select id="sel2"></select>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Karşılaştırma Tablosu</h2>
+    <div id="compareResult"></div>
+  </div>
+
+<script>
+  const FUNDS = {funds_json};
+  const PERIOD_DAYS = {{ gunluk: 1, haftalik: 7, aylik: 30 }};
+
+  function parseDate(s) {{ return new Date(s + 'T00:00:00').getTime(); }}
+
+  function computeForPeriod(hist, days) {{
+    if (!hist || hist.length === 0) return null;
+    const last = hist[hist.length - 1];
+    if (hist.length === 1) return null;
+    const targetTime = parseDate(last[0]) - days * 86400000;
+    let baseline = hist[0];
+    for (let i = hist.length - 1; i >= 0; i--) {{
+      if (parseDate(hist[i][0]) <= targetTime) {{ baseline = hist[i]; break; }}
+    }}
+    if (baseline[1] <= 0 || baseline[0] === last[0]) return null;
+    return (last[1] - baseline[1]) / baseline[1] * 100;
+  }}
+
+  function last5(hist) {{
+    if (!hist || hist.length === 0) return [];
+    return hist.slice(-5).slice().reverse();
+  }}
+
+  function fmtPct(v) {{
+    if (v === null || v === undefined || isNaN(v)) return '<span class="muted">—</span>';
+    const cls = v >= 0 ? 'pos' : 'neg';
+    const sign = v >= 0 ? '+' : '';
+    return `<span class="${{cls}}">${{sign}}${{v.toFixed(4)}}%</span>`;
+  }}
+  function fmtPrice(v) {{
+    return v.toLocaleString('tr-TR', {{ minimumFractionDigits: 6, maximumFractionDigits: 6 }});
+  }}
+  function fmtDate(s) {{
+    const [y, m, d] = s.split('-');
+    return `${{d}}.${{m}}.${{y}}`;
+  }}
+
+  const sortedFunds = FUNDS.slice().sort((a, b) => (a.sirket + a.kod).localeCompare(b.sirket + b.kod, 'tr'));
+  const bySirket = {{}};
+  sortedFunds.forEach(f => {{ (bySirket[f.sirket] = bySirket[f.sirket] || []).push(f); }});
+
+  function populateSelect(sel, defaultKod) {{
+    sel.innerHTML = '';
+    Object.keys(bySirket).forEach(sirket => {{
+      const grp = document.createElement('optgroup');
+      grp.label = sirket;
+      bySirket[sirket].forEach(f => {{
+        const opt = document.createElement('option');
+        opt.value = f.kod;
+        opt.textContent = `${{f.kod}} — ${{f.ad}}`;
+        if (f.kod === defaultKod) opt.selected = true;
+        grp.appendChild(opt);
+      }});
+      sel.appendChild(grp);
+    }});
+  }}
+
+  const selects = [document.getElementById('sel0'), document.getElementById('sel1'), document.getElementById('sel2')];
+  const defaults = sortedFunds.slice(0, 3).map(f => f.kod);
+  selects.forEach((sel, i) => {{
+    populateSelect(sel, defaults[i] || sortedFunds[0].kod);
+    sel.addEventListener('change', render);
+  }});
+
+  function render() {{
+    const kods = selects.map(s => s.value);
+    const result = document.getElementById('compareResult');
+
+    if (new Set(kods).size < 3) {{
+      result.innerHTML = '<div class="empty-msg">Lütfen 3 farklı fon seçin (aynı fon birden fazla kez seçilemez).</div>';
+      return;
+    }}
+
+    const funds = kods.map(k => FUNDS.find(f => f.kod === k));
+
+    const metrics = funds.map(f => ({{
+      gunluk: computeForPeriod(f.hist, PERIOD_DAYS.gunluk),
+      haftalik: computeForPeriod(f.hist, PERIOD_DAYS.haftalik),
+      aylik: computeForPeriod(f.hist, PERIOD_DAYS.aylik),
+    }}));
+
+    // Kazananı belirle: 3 getiri metriğinden (günlük/haftalık/aylık) en çoğunda en yüksek
+    // değere sahip olan fon "kazanır". Eşitlik durumunda sırasıyla aylık, haftalık, günlük
+    // getirisi en yüksek olan öne çıkar.
+    const wins = [0, 0, 0];
+    ['gunluk', 'haftalik', 'aylik'].forEach(key => {{
+      let bestIdx = -1, bestVal = -Infinity;
+      metrics.forEach((m, i) => {{ if (m[key] !== null && m[key] > bestVal) {{ bestVal = m[key]; bestIdx = i; }} }});
+      if (bestIdx >= 0) wins[bestIdx]++;
+    }});
+    let winnerIdx = 0;
+    for (let i = 1; i < 3; i++) {{
+      if (wins[i] > wins[winnerIdx]) {{ winnerIdx = i; continue; }}
+      if (wins[i] === wins[winnerIdx]) {{
+        const a = metrics[i], b = metrics[winnerIdx];
+        const av = (a.aylik ?? -Infinity), bv = (b.aylik ?? -Infinity);
+        if (av > bv) {{ winnerIdx = i; continue; }}
+        if (av === bv) {{
+          const ah = (a.haftalik ?? -Infinity), bh = (b.haftalik ?? -Infinity);
+          if (ah > bh) winnerIdx = i;
+        }}
+      }}
+    }}
+    const hasAnyReturn = wins.some(w => w > 0);
+
+    function bestColFor(key) {{
+      let bestIdx = -1, bestVal = -Infinity;
+      metrics.forEach((m, i) => {{ if (m[key] !== null && m[key] > bestVal) {{ bestVal = m[key]; bestIdx = i; }} }});
+      return bestIdx;
+    }}
+
+    const rows5 = funds.map(f => last5(f.hist));
+    const maxRows = Math.max(0, ...rows5.map(r => r.length));
+
+    let html = '<table><thead><tr><th></th>';
+    funds.forEach((f, i) => {{
+      const isWinner = hasAnyReturn && i === winnerIdx;
+      html += `<th class="fund-th${{isWinner ? ' winner' : ''}}">
+        <a class="fund-name" href="${{f.valorUrl || '#'}}" target="_blank" rel="noopener">${{f.kod}}</a>
+        <span class="fund-sirket">${{f.sirket}}</span>
+        ${{isWinner ? '<span class="badge-win">EN YÜKSEK GETİRİ</span>' : ''}}
+      </th>`;
+    }});
+    html += '</tr></thead><tbody>';
+
+    for (let r = 0; r < maxRows; r++) {{
+      html += `<tr><td class="rowlabel">${{r === 0 ? 'Son Fiyat' : 'T-' + r + ' Fiyatı'}}</td>`;
+      funds.forEach((f, i) => {{
+        const pt = rows5[i][r];
+        const isWinner = hasAnyReturn && i === winnerIdx;
+        html += `<td class="num${{isWinner ? ' winner' : ''}}">${{pt ? fmtPrice(pt[1]) + '<div class="muted" style="font-size:11px">' + fmtDate(pt[0]) + '</div>' : '<span class="muted">—</span>'}}</td>`;
+      }});
+      html += '</tr>';
+    }}
+
+    const metricRows = [
+      ['Günlük Getiri', 'gunluk'],
+      ['Haftalık Getiri', 'haftalik'],
+      ['Aylık Getiri', 'aylik'],
+    ];
+    metricRows.forEach(([label, key]) => {{
+      const bestIdx = bestColFor(key);
+      html += `<tr><td class="rowlabel">${{label}}</td>`;
+      funds.forEach((f, i) => {{
+        const isWinner = hasAnyReturn && i === winnerIdx;
+        const isBest = i === bestIdx;
+        html += `<td class="num${{isWinner ? ' winner' : ''}}">${{fmtPct(metrics[i][key])}}${{isBest ? ' ▲' : ''}}</td>`;
+      }});
+      html += '</tr>';
+    }});
+
+    html += `<tr><td class="rowlabel">Risk Seviyesi</td>`;
+    funds.forEach((f, i) => {{
+      const isWinner = hasAnyReturn && i === winnerIdx;
+      html += `<td class="num${{isWinner ? ' winner' : ''}}">${{f.risk ? f.risk + '/7' : '<span class="muted">—</span>'}}</td>`;
+    }});
+    html += '</tr>';
+
+    html += `<tr><td class="rowlabel">Alış Valörü</td>`;
+    funds.forEach((f, i) => {{
+      const isWinner = hasAnyReturn && i === winnerIdx;
+      html += `<td class="num${{isWinner ? ' winner' : ''}}">${{f.alisValor || '<span class="muted">—</span>'}}</td>`;
+    }});
+    html += '</tr>';
+
+    html += `<tr><td class="rowlabel">Satış Valörü</td>`;
+    funds.forEach((f, i) => {{
+      const isWinner = hasAnyReturn && i === winnerIdx;
+      html += `<td class="num${{isWinner ? ' winner' : ''}}">${{f.satisValor || '<span class="muted">—</span>'}}</td>`;
+    }});
+    html += '</tr>';
+
+    html += `<tr><td class="rowlabel">Valör Kaynağı</td>`;
+    funds.forEach((f, i) => {{
+      const isWinner = hasAnyReturn && i === winnerIdx;
+      html += `<td class="num muted${{isWinner ? ' winner' : ''}}" style="font-size:12px">${{f.valorKaynak || '—'}}</td>`;
+    }});
+    html += '</tr>';
+
+    html += `<tr><td class="rowlabel">Fon Sayfası</td>`;
+    funds.forEach((f, i) => {{
+      const isWinner = hasAnyReturn && i === winnerIdx;
+      html += `<td class="num${{isWinner ? ' winner' : ''}}">${{f.valorUrl ? `<a class="fon-link" href="${{f.valorUrl}}" target="_blank" rel="noopener">Sayfayı Aç →</a>` : '<span class="muted">—</span>'}}</td>`;
+    }});
+    html += '</tr>';
+
+    html += '</tbody></table>';
+    result.innerHTML = html;
+  }}
+
+  render();
+</script>
+</body>
+</html>"""
+    return html
+
+
 def build(date_str=None, prices=None):
     """Load data, optionally add a new day's prices, regenerate the report."""
     data = load_data()
@@ -823,4 +1116,7 @@ def build(date_str=None, prices=None):
     karar_html = render_karar_html(rows)
     with open(KARAR_FILE, "w", encoding="utf-8") as f:
         f.write(karar_html)
+    karsilastir_html = render_karsilastir_html(rows)
+    with open(KARSILASTIR_FILE, "w", encoding="utf-8") as f:
+        f.write(karsilastir_html)
     return rows
