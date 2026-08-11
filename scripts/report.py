@@ -114,7 +114,12 @@ def _slug(s):
 
 
 def render_html(data, rows):
-    son_tarih = data.get("son_guncelleme", "")
+    son_tarih = data.get("son_guncelleme") or ""
+    if not son_tarih and rows:
+        # Guvenlik agi: ust seviye alan bos/None kalmis olsa bile (ör. gecmis
+        # veri birlestirme sirasinda unutulmus olabilir), fonlarin kendi
+        # gecmis kayitlarindan en guncel tarihi turet.
+        son_tarih = max((r["tarih"] for r in rows if r.get("tarih")), default="")
 
     by_sirket = {}
     for r in rows:
