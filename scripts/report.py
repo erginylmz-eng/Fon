@@ -277,6 +277,22 @@ def render_html(data, rows):
     <a href="karsilastir.html" class="btn" style="text-decoration:none; display:inline-block; background:transparent; border:1px solid var(--border); color:var(--text);">3 Fon Karşılaştır</a>
   </div>
 
+  <div class="card">
+    <h2>Veriyi Şimdi Çek</h2>
+    <div class="btn-row">
+      <button class="btn" onclick="runNow()">Şimdi Çek</button>
+      <button class="btn secondary" onclick="resetGithubConfig()">GitHub Bağlantısını Sıfırla</button>
+    </div>
+    <div id="runNowStatus" class="help-text"></div>
+    <div class="help-text">
+      Otomatik güncellemeyi beklemeden veriyi hemen çekmek için bir GitHub <b>Personal Access Token</b> gerekir
+      (sadece bu tarayıcınızda saklanır, kimseyle paylaşılmaz, doğrudan GitHub'ın kendi sunucusuna gönderilir).
+      Repo → Settings → Developer settings → Personal access tokens → Fine-grained tokens → sadece bu repo,
+      izin: <b>Actions: Read and write</b> (başka izin gerekmez). İlk "Şimdi Çek" tıklamanızda GitHub
+      kullanıcı adı / repo adı / token sorulacak.
+    </div>
+  </div>
+
   <div class="toc">
     {''.join(f'<a href="#{s.replace(" ", "-")}">{s}</a>' for s in ordered_sirketler)}
   </div>
@@ -373,6 +389,58 @@ def render_html(data, rows):
     el.className = 'update-status ' + cls;
     el.innerHTML = `<span class="dot"></span> ${{msg}}`;
   }})();
+
+  // ---- Veriyi şimdi çek (GitHub Actions workflow_dispatch tetikleyici) ----
+  const WORKFLOW_FILE = 'daily-update.yml';
+
+  function getGithubConfig(forcePrompt) {{
+    let owner = localStorage.getItem('tefas_gh_owner') || '';
+    let repo = localStorage.getItem('tefas_gh_repo') || '';
+    let token = localStorage.getItem('tefas_gh_token') || '';
+    if (forcePrompt || !owner || !repo || !token) {{
+      owner = prompt('GitHub kullanıcı adınız:', owner) || owner;
+      repo = prompt('Repo adı:', repo) || repo;
+      token = prompt('GitHub Personal Access Token (sadece bu tarayıcıda saklanır):', '') || token;
+      if (owner) localStorage.setItem('tefas_gh_owner', owner);
+      if (repo) localStorage.setItem('tefas_gh_repo', repo);
+      if (token) localStorage.setItem('tefas_gh_token', token);
+    }}
+    return {{ owner, repo, token }};
+  }}
+
+  function resetGithubConfig() {{
+    localStorage.removeItem('tefas_gh_owner');
+    localStorage.removeItem('tefas_gh_repo');
+    localStorage.removeItem('tefas_gh_token');
+    getGithubConfig(true);
+  }}
+
+  async function runNow() {{
+    const status = document.getElementById('runNowStatus');
+    const {{ owner, repo, token }} = getGithubConfig(false);
+    if (!owner || !repo || !token) {{
+      status.innerHTML = '<span class="neg">GitHub bilgileri eksik.</span>';
+      return;
+    }}
+    status.textContent = 'Çalıştırma tetikleniyor...';
+    try {{
+      const res = await fetch(
+        `https://api.github.com/repos/${{owner}}/${{repo}}/actions/workflows/${{WORKFLOW_FILE}}/dispatches`,
+        {{
+          method: 'POST',
+          headers: {{ Authorization: `token ${{token}}`, 'Content-Type': 'application/json' }},
+          body: JSON.stringify({{ ref: 'main' }}),
+        }}
+      );
+      if (res.status === 204) {{
+        status.innerHTML = '<span class="pos">Tetiklendi.</span> Actions sekmesinden takip edebilirsiniz, birkaç dakika sonra bu sayfayı yenileyin.';
+      }} else {{
+        throw new Error('HTTP ' + res.status);
+      }}
+    }} catch (e) {{
+      status.innerHTML = `<span class="neg">Hata: ${{e.message}}</span>`;
+    }}
+  }}
 
   // ---- Dönem bazlı (Günlük/Haftalık/Aylık/Yıllık) dinamik rapor ----
   const FUNDS = {funds_json};
