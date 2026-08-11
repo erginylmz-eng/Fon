@@ -172,10 +172,11 @@ def render_html(data, rows):
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>TEFAS Para Piyasası Fonları (Firma Bazlı) - Günlük Getiri Raporu</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root {{
     --bg: #0f1420; --card: #171d2b; --border: #2a3243; --text: #e6e9ef;
-    --muted: #8b93a7; --pos: #3ddc84; --neg: #ff5c72; --accent: #4f8cff;
+    --muted: #8b93a7; --pos: #3ddc84; --neg: #ff5c72; --accent: #4f8cff; --warn: #f5a623;
   }}
   * {{ box-sizing: border-box; }}
   body {{
@@ -225,23 +226,31 @@ def render_html(data, rows):
   .legend {{ display: flex; gap: 18px; margin-bottom: 12px; font-size: 12px; color: var(--muted); }}
   .legend span {{ display: inline-flex; align-items: center; gap: 6px; }}
   .swatch {{ width: 10px; height: 10px; border-radius: 3px; display: inline-block; }}
-  .addfund-row {{ display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }}
-  .addfund-row input {{
-    background: var(--bg); border: 1px solid var(--border); color: var(--text);
+  .select-row {{ display: flex; gap: 12px; flex-wrap: wrap; }}
+  .select-col {{ flex: 1; min-width: 200px; }}
+  .select-col label {{ display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; }}
+  select, input[type="date"] {{
+    width: 100%; background: var(--bg); color: var(--text); border: 1px solid var(--border);
     border-radius: 8px; padding: 9px 12px; font-size: 13px; font-family: inherit;
   }}
-  .addfund-row input#newKod {{ width: 110px; text-transform: uppercase; }}
-  .addfund-row input#newSirket {{ flex: 1; min-width: 160px; }}
-  .addfund-row input#newRisk {{ width: 90px; }}
+  select[multiple] {{ height: auto; }}
   .btn {{
     background: var(--accent); color: #fff; border: none; border-radius: 8px;
     padding: 9px 16px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit;
   }}
   .btn:hover {{ opacity: .9; }}
   .btn.secondary {{ background: transparent; border: 1px solid var(--border); color: var(--text); }}
-  .btn-row {{ display: flex; gap: 8px; margin-top: 10px; }}
-  .addfund-help {{ font-size: 12px; color: var(--muted); margin-top: 10px; line-height: 1.6; }}
-  .addfund-help a {{ color: var(--accent); }}
+  .btn-row {{ display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }}
+  .help-text {{ font-size: 12px; color: var(--muted); margin-top: 10px; line-height: 1.6; }}
+  .help-text a {{ color: var(--accent); }}
+  .update-status {{
+    display: inline-flex; align-items: center; gap: 8px; padding: 9px 16px; border-radius: 8px;
+    font-size: 13px; font-weight: 600; margin-bottom: 20px; border: 1px solid var(--border);
+  }}
+  .update-status .dot {{ width: 8px; height: 8px; border-radius: 50%; background: currentColor; display: inline-block; }}
+  .update-status.fresh {{ background: rgba(61,220,132,0.08); border-color: var(--pos); color: var(--pos); }}
+  .update-status.stale {{ background: rgba(245,166,35,0.08); border-color: var(--warn); color: var(--warn); }}
+  .update-status.old {{ background: rgba(255,92,114,0.08); border-color: var(--neg); color: var(--neg); }}
   .period-row {{ display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }}
   .period-btn {{
     padding: 9px 18px; border-radius: 8px; border: 1px solid var(--border); background: transparent;
@@ -260,6 +269,8 @@ def render_html(data, rows):
 <body>
   <h1>TEFAS Para Piyasası Fonları — Firma Bazlı Günlük Getiri Raporu</h1>
   <div class="subtitle">{n_sirket} kurucu firma · {n_funds} fon (risk 1/7 veya 2/7) · Son güncelleme: {son_tarih}</div>
+
+  <div id="updateStatus" class="update-status"><span class="dot"></span> Veri durumu kontrol ediliyor…</div>
 
   <div style="margin-bottom:20px; display:flex; gap:10px; flex-wrap:wrap;">
     <a href="karar.html" class="btn" style="text-decoration:none; display:inline-block;">Yatırım Önerisi (AI Analiz)</a>
@@ -285,25 +296,27 @@ def render_html(data, rows):
   </div>
 
   <div class="card">
-    <h2>Yeni Fon Ekle</h2>
-    <div class="addfund-row">
-      <input id="newKod" placeholder="Fon Kodu (örn. AAL)" maxlength="10">
-      <input id="newSirket" placeholder="Firma Adı (örn. Ata Portföy)">
-      <input id="newRisk" placeholder="Risk 1-7 (opsiyonel)" maxlength="1">
-      <button class="btn" onclick="addFund()">Listeye Ekle</button>
+    <h2>Veri Dışa Aktar (Excel)</h2>
+    <div class="select-row">
+      <div class="select-col" style="flex:2">
+        <label>Fonlar (Ctrl/Cmd ile birden fazla seçebilirsiniz)</label>
+        <select id="exportFunds" multiple size="8"></select>
+      </div>
+      <div class="select-col">
+        <label>Başlangıç Tarihi</label>
+        <input type="date" id="exportStart">
+      </div>
+      <div class="select-col">
+        <label>Bitiş Tarihi</label>
+        <input type="date" id="exportEnd">
+      </div>
     </div>
     <div class="btn-row">
-      <button class="btn secondary" onclick="runNow()">Raporu Şimdi Güncelle</button>
-      <button class="btn secondary" onclick="resetGithubConfig()">GitHub Bağlantısını Sıfırla</button>
+      <button class="btn secondary" onclick="selectAllExportFunds()">Tümünü Seç</button>
+      <button class="btn secondary" onclick="clearExportFunds()">Seçimi Temizle</button>
+      <button class="btn" onclick="exportExcel()">Excel'e Aktar</button>
     </div>
-    <div id="addFundStatus" class="addfund-help"></div>
-    <div class="addfund-help">
-      Fon eklemek için bir GitHub <b>Personal Access Token</b> gerekir (sadece bu tarayıcınızda saklanır,
-      kimseyle paylaşılmaz). Repo → Settings → Developer settings → Personal access tokens →
-      Fine-grained tokens → sadece bu repo, izinler: <b>Contents: Read and write</b>,
-      <b>Actions: Read and write</b>. İlk "Listeye Ekle" veya "Raporu Şimdi Güncelle" tıklamanızda
-      GitHub kullanıcı adı / repo adı / token sorulacak.
-    </div>
+    <div id="exportStatus" class="help-text"></div>
   </div>
 
   <div class="card">
@@ -323,110 +336,123 @@ def render_html(data, rows):
   </footer>
 
 <script>
-  const REPO_PATH = 'data/fon_listesi.csv';
-  const WORKFLOW_FILE = 'daily-update.yml';
+  const SON_TARIH = '{son_tarih}';
 
-  function getGithubConfig(forcePrompt) {{
-    let owner = localStorage.getItem('tefas_gh_owner') || '';
-    let repo = localStorage.getItem('tefas_gh_repo') || '';
-    let token = localStorage.getItem('tefas_gh_token') || '';
-    if (forcePrompt || !owner || !repo || !token) {{
-      owner = prompt('GitHub kullanıcı adınız:', owner) || owner;
-      repo = prompt('Repo adı:', repo) || repo;
-      token = prompt('GitHub Personal Access Token (sadece bu tarayıcıda saklanır):', '') || token;
-      if (owner) localStorage.setItem('tefas_gh_owner', owner);
-      if (repo) localStorage.setItem('tefas_gh_repo', repo);
-      if (token) localStorage.setItem('tefas_gh_token', token);
-    }}
-    return {{ owner, repo, token }};
+  function previousBusinessDay(d) {{
+    const dt = new Date(d.getTime());
+    dt.setDate(dt.getDate() - 1);
+    while (dt.getDay() === 0 || dt.getDay() === 6) dt.setDate(dt.getDate() - 1);
+    return dt;
+  }}
+  function toDateStr(d) {{
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
   }}
 
-  function resetGithubConfig() {{
-    localStorage.removeItem('tefas_gh_owner');
-    localStorage.removeItem('tefas_gh_repo');
-    localStorage.removeItem('tefas_gh_token');
-    getGithubConfig(true);
-  }}
-
-  function b64EncodeUtf8(str) {{
-    return btoa(unescape(encodeURIComponent(str)));
-  }}
-  function b64DecodeUtf8(str) {{
-    return decodeURIComponent(escape(atob(str.replace(/\\n/g, ''))));
-  }}
-
-  async function addFund() {{
-    const kod = document.getElementById('newKod').value.trim().toUpperCase();
-    const sirket = document.getElementById('newSirket').value.trim();
-    const risk = document.getElementById('newRisk').value.trim();
-    const status = document.getElementById('addFundStatus');
-    if (!kod || !sirket) {{
-      status.innerHTML = '<span class="neg">Fon kodu ve firma adı zorunlu.</span>';
+  (function checkUpdateStatus() {{
+    const el = document.getElementById('updateStatus');
+    if (!SON_TARIH) {{
+      el.className = 'update-status old';
+      el.innerHTML = '<span class="dot"></span> Veri tarihi bulunamadı.';
       return;
     }}
-    const {{ owner, repo, token }} = getGithubConfig(false);
-    if (!owner || !repo || !token) {{
-      status.innerHTML = '<span class="neg">GitHub bilgileri eksik.</span>';
-      return;
+    const now = new Date();
+    const expected = previousBusinessDay(now);
+    const expectedStr = toDateStr(expected);
+    const expected2 = toDateStr(previousBusinessDay(expected));
+    let cls, msg;
+    if (SON_TARIH >= expectedStr) {{
+      cls = 'fresh';
+      msg = `Veri güncel — son güncelleme ${{SON_TARIH}}`;
+    }} else if (SON_TARIH >= expected2) {{
+      cls = 'stale';
+      msg = `Son güncelleme ${{SON_TARIH}} — resmi tatil olabilir, birkaç saat içinde güncellenmezse kontrol edin`;
+    }} else {{
+      cls = 'old';
+      msg = `Son güncelleme ${{SON_TARIH}} — otomatik güncelleme çalışmamış olabilir, GitHub Actions sekmesini kontrol edin`;
     }}
-    status.textContent = 'Ekleniyor...';
-    try {{
-      const apiUrl = `https://api.github.com/repos/${{owner}}/${{repo}}/contents/${{REPO_PATH}}`;
-      const getRes = await fetch(apiUrl, {{ headers: {{ Authorization: `token ${{token}}` }} }});
-      if (!getRes.ok) throw new Error('CSV okunamadı (HTTP ' + getRes.status + ')');
-      const getData = await getRes.json();
-      let content = b64DecodeUtf8(getData.content);
-      if (!content.endsWith('\\n')) content += '\\n';
-      content += `${{kod}},${{sirket}},${{risk}}\\n`;
-      const putRes = await fetch(apiUrl, {{
-        method: 'PUT',
-        headers: {{ Authorization: `token ${{token}}`, 'Content-Type': 'application/json' }},
-        body: JSON.stringify({{
-          message: `Fon eklendi: ${{kod}}`,
-          content: b64EncodeUtf8(content),
-          sha: getData.sha,
-        }}),
-      }});
-      if (!putRes.ok) throw new Error('Kaydedilemedi (HTTP ' + putRes.status + ')');
-      status.innerHTML = `<span class="pos">${{kod}} listeye eklendi.</span> "Raporu Şimdi Güncelle"ye basarak hemen çekebilir ya da bir sonraki otomatik çalıştırmayı bekleyebilirsiniz.`;
-      document.getElementById('newKod').value = '';
-      document.getElementById('newSirket').value = '';
-      document.getElementById('newRisk').value = '';
-    }} catch (e) {{
-      status.innerHTML = `<span class="neg">Hata: ${{e.message}}</span>`;
-    }}
-  }}
-
-  async function runNow() {{
-    const status = document.getElementById('addFundStatus');
-    const {{ owner, repo, token }} = getGithubConfig(false);
-    if (!owner || !repo || !token) {{
-      status.innerHTML = '<span class="neg">GitHub bilgileri eksik.</span>';
-      return;
-    }}
-    status.textContent = 'Çalıştırma tetikleniyor...';
-    try {{
-      const res = await fetch(
-        `https://api.github.com/repos/${{owner}}/${{repo}}/actions/workflows/${{WORKFLOW_FILE}}/dispatches`,
-        {{
-          method: 'POST',
-          headers: {{ Authorization: `token ${{token}}`, 'Content-Type': 'application/json' }},
-          body: JSON.stringify({{ ref: 'main' }}),
-        }}
-      );
-      if (res.status === 204) {{
-        status.innerHTML = '<span class="pos">Tetiklendi.</span> Actions sekmesinden takip edebilirsiniz, birkaç dakika sonra bu sayfayı yenileyin.';
-      }} else {{
-        throw new Error('HTTP ' + res.status);
-      }}
-    }} catch (e) {{
-      status.innerHTML = `<span class="neg">Hata: ${{e.message}}</span>`;
-    }}
-  }}
+    el.className = 'update-status ' + cls;
+    el.innerHTML = `<span class="dot"></span> ${{msg}}`;
+  }})();
 
   // ---- Dönem bazlı (Günlük/Haftalık/Aylık/Yıllık) dinamik rapor ----
   const FUNDS = {funds_json};
   const SIRKET_ORDER = {sirket_order_json};
+
+  // ---- Excel'e veri dışa aktarma ----
+  const sortedFundsForExport = FUNDS.slice().sort((a, b) => (a.sirket + a.kod).localeCompare(b.sirket + b.kod, 'tr'));
+  const exportBySirket = {{}};
+  sortedFundsForExport.forEach(f => {{ (exportBySirket[f.sirket] = exportBySirket[f.sirket] || []).push(f); }});
+
+  function populateExportSelect() {{
+    const sel = document.getElementById('exportFunds');
+    sel.innerHTML = '';
+    Object.keys(exportBySirket).forEach(sirket => {{
+      const grp = document.createElement('optgroup');
+      grp.label = sirket;
+      exportBySirket[sirket].forEach(f => {{
+        const opt = document.createElement('option');
+        opt.value = f.kod;
+        opt.textContent = `${{f.kod}} — ${{f.ad}}`;
+        grp.appendChild(opt);
+      }});
+      sel.appendChild(grp);
+    }});
+  }}
+  populateExportSelect();
+
+  function selectAllExportFunds() {{
+    document.querySelectorAll('#exportFunds option').forEach(o => o.selected = true);
+  }}
+  function clearExportFunds() {{
+    document.querySelectorAll('#exportFunds option').forEach(o => o.selected = false);
+  }}
+
+  (function setDefaultExportDates() {{
+    let minD = null, maxD = null;
+    FUNDS.forEach(f => f.hist.forEach(([d]) => {{
+      if (!minD || d < minD) minD = d;
+      if (!maxD || d > maxD) maxD = d;
+    }}));
+    if (minD && maxD) {{
+      const startEl = document.getElementById('exportStart');
+      const endEl = document.getElementById('exportEnd');
+      startEl.min = minD; startEl.max = maxD; startEl.value = minD;
+      endEl.min = minD; endEl.max = maxD; endEl.value = maxD;
+    }}
+  }})();
+
+  function exportExcel() {{
+    const status = document.getElementById('exportStatus');
+    const kods = Array.from(document.getElementById('exportFunds').selectedOptions).map(o => o.value);
+    const start = document.getElementById('exportStart').value;
+    const end = document.getElementById('exportEnd').value;
+    if (!kods.length) {{ status.innerHTML = '<span class="neg">En az bir fon seçin.</span>'; return; }}
+    if (!start || !end || start > end) {{ status.innerHTML = '<span class="neg">Geçerli bir tarih aralığı seçin.</span>'; return; }}
+
+    const selFunds = FUNDS.filter(f => kods.includes(f.kod));
+    const dateSet = new Set();
+    selFunds.forEach(f => f.hist.forEach(([d]) => {{ if (d >= start && d <= end) dateSet.add(d); }}));
+    const dates = Array.from(dateSet).sort();
+    if (!dates.length) {{ status.innerHTML = '<span class="neg">Seçilen aralıkta veri bulunamadı.</span>'; return; }}
+
+    const header = ['Tarih', ...selFunds.map(f => `${{f.kod}} (${{f.sirket}})`)];
+    const aoa = [header];
+    dates.forEach(d => {{
+      const row = [d];
+      selFunds.forEach(f => {{
+        const entry = f.hist.find(h => h[0] === d);
+        row.push(entry ? entry[1] : '');
+      }});
+      aoa.push(row);
+    }});
+
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    ws['!cols'] = header.map(() => ({{ wch: 18 }}));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Fon Verileri');
+    XLSX.writeFile(wb, `tefas_fon_verileri_${{start}}_${{end}}.xlsx`);
+    status.innerHTML = `<span class="pos">${{dates.length}} günlük veri, ${{selFunds.length}} fon için indirildi.</span>`;
+  }}
   const PERIOD_DAYS = {{ gunluk: 1, haftalik: 7, aylik: 30, yillik: 365 }};
   const PERIOD_LABELS = {{ gunluk: 'Günlük', haftalik: 'Haftalık', aylik: 'Aylık', yillik: 'Yıllık' }};
   const riskColor = {{ 1: 'rgba(79,140,255,0.85)', 2: 'rgba(245,166,35,0.85)' }};
