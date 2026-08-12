@@ -290,9 +290,12 @@ def render_html(data, rows):
     </div>
     <div id="runNowStatus" class="help-text"></div>
     <div class="help-text">
-      Otomatik güncellemeyi beklemeden veriyi hemen çekmek için bir GitHub <b>Personal Access Token</b> gerekir
-      (sadece bu tarayıcınızda saklanır, kimseyle paylaşılmaz, doğrudan GitHub'ın kendi sunucusuna gönderilir).
-      Repo → Settings → Developer settings → Personal access tokens → Fine-grained tokens → sadece bu repo,
+      Bu sistemde otomatik/zamanlanmış güncelleme yoktur — veri sadece bu butona bastığınızda çekilir.
+      Butona bastığınızda, sistemde kayıtlı en son tarihten bugüne kadar olan tüm eksik günler tek tek
+      (gün gün) çekilip işlenir; örneğin son veri 5 gün önceyse, o 5 günün hepsi sırayla çekilir.
+      Bunun için bir GitHub <b>Personal Access Token</b> gerekir (sadece bu tarayıcınızda saklanır,
+      kimseyle paylaşılmaz, doğrudan GitHub'ın kendi sunucusuna gönderilir). Repo → Settings →
+      Developer settings → Personal access tokens → Fine-grained tokens → sadece bu repo,
       izin: <b>Actions: Read and write</b> (başka izin gerekmez). İlk "Şimdi Çek" tıklamanızda GitHub
       kullanıcı adı / repo adı / token sorulacak.
     </div>
@@ -353,7 +356,8 @@ def render_html(data, rows):
 
   <footer>
     Veri kaynağı: <a href="https://www.tefas.gov.tr/tr/fon-verileri" style="color:var(--accent)">TEFAS Fon Verileri</a>.
-    Bu rapor bilgilendirme amaçlıdır, yatırım tavsiyesi değildir. Her iş günü otomatik olarak GitHub Actions ile güncellenir.
+    Bu rapor bilgilendirme amaçlıdır, yatırım tavsiyesi değildir. Veri otomatik güncellenmez —
+    "Şimdi Çek" butonuyla elle güncellenir.
   </footer>
 
 <script>
@@ -372,24 +376,31 @@ def render_html(data, rows):
   (function checkUpdateStatus() {{
     const el = document.getElementById('updateStatus');
     if (!SON_TARIH) {{
-      el.className = 'update-status old';
-      el.innerHTML = '<span class="dot"></span> Veri tarihi bulunamadı.';
+      el.className = 'update-status stale';
+      el.innerHTML = '<span class="dot"></span> Henüz veri çekilmemiş — aşağıdaki "Şimdi Çek" butonuna basın.';
       return;
     }}
     const now = new Date();
     const expected = previousBusinessDay(now);
     const expectedStr = toDateStr(expected);
-    const expected2 = toDateStr(previousBusinessDay(expected));
     let cls, msg;
     if (SON_TARIH >= expectedStr) {{
       cls = 'fresh';
       msg = `Veri güncel — son güncelleme ${{SON_TARIH}}`;
-    }} else if (SON_TARIH >= expected2) {{
-      cls = 'stale';
-      msg = `Son güncelleme ${{SON_TARIH}} — resmi tatil olabilir, birkaç saat içinde güncellenmezse kontrol edin`;
     }} else {{
-      cls = 'old';
-      msg = `Son güncelleme ${{SON_TARIH}} — otomatik güncelleme çalışmamış olabilir, GitHub Actions sekmesini kontrol edin`;
+      cls = 'stale';
+      // Eksik is gunu sayisini, fetch_and_build.py'deki business_days_between
+      // ile ayni mantikla say (haftasonlari haric).
+      let missing = 0;
+      let d = new Date(SON_TARIH + 'T00:00:00');
+      d.setDate(d.getDate() + 1);
+      const end = new Date(expectedStr + 'T00:00:00');
+      while (d <= end) {{
+        if (d.getDay() !== 0 && d.getDay() !== 6) missing++;
+        d.setDate(d.getDate() + 1);
+      }}
+      const gunIfadesi = missing === 1 ? '1 iş günü' : `${{missing}} iş günü`;
+      msg = `Son güncelleme ${{SON_TARIH}} (${{gunIfadesi}} eksik) — güncellemek için aşağıdaki "Şimdi Çek" butonuna basın`;
     }}
     el.className = 'update-status ' + cls;
     el.innerHTML = `<span class="dot"></span> ${{msg}}`;
@@ -438,7 +449,7 @@ def render_html(data, rows):
         }}
       );
       if (res.status === 204) {{
-        status.innerHTML = '<span class="pos">Tetiklendi.</span> Actions sekmesinden takip edebilirsiniz, birkaç dakika sonra bu sayfayı yenileyin.';
+        status.innerHTML = '<span class="pos">Tetiklendi.</span> Eksik olan tüm günler tek tek çekilecek, bu birkaç dakika sürebilir. Actions sekmesinden ilerlemeyi takip edebilir, bittiğinde bu sayfayı yenileyebilirsiniz.';
       }} else {{
         throw new Error('HTTP ' + res.status);
       }}
