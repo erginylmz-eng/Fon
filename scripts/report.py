@@ -316,8 +316,8 @@ def render_html(data, rows):
 
   <footer>
     Veri kaynağı: <a href="https://www.tefas.gov.tr/tr/fon-verileri" style="color:var(--accent)">TEFAS Fon Verileri</a>.
-    Bu rapor bilgilendirme amaçlıdır, yatırım tavsiyesi değildir. Veri otomatik güncellenmez —
-    manuel olarak güncellenip yayınlanır.
+    Bu rapor bilgilendirme amaçlıdır, yatırım tavsiyesi değildir. Veri hafta içi her sabah
+    otomatik olarak güncellenir.
   </footer>
 
 <script>
@@ -360,7 +360,7 @@ def render_html(data, rows):
         d.setDate(d.getDate() + 1);
       }}
       const gunIfadesi = missing === 1 ? '1 iş günü' : `${{missing}} iş günü`;
-      msg = `Son güncelleme ${{SON_TARIH}} (${{gunIfadesi}} eksik) — güncellemek için Claude'a "veriyi güncelle" yazın`;
+      msg = `Son güncelleme ${{SON_TARIH}} (${{gunIfadesi}} eksik) — otomatik güncelleme birkaç saat içinde beklenmelidir`;
     }}
     el.className = 'update-status ' + cls;
     el.innerHTML = `<span class="dot"></span> ${{msg}}`;

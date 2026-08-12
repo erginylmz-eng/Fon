@@ -1,11 +1,13 @@
-name: TEFAS Veri Güncelleme (Elle Çalıştır)
+name: TEFAS Veri Güncelleme
 
-# NOT: Otomatik/zamanlanmış çalıştırma KALDIRILDI. Bu workflow artık sadece
-# elle tetiklendiğinde çalışır: ya bu repoda "Actions" sekmesinden
-# "Run workflow" ile, ya da rapor sayfasındaki "Şimdi Çek" butonuyla.
-# Çalıştığında, sistemde kayıtlı en son tarihten bugüne kadar olan tüm
-# eksik iş günlerini tek tek çeker ve işler.
+# TEFAS'ın kendi (doğrudan JSON döndüren, tarayıcı gerektirmeyen) API'sini
+# kullandığımız için artık hafta içi her sabah otomatik çalışır. Elle de
+# tetiklenebilir: Actions sekmesinden "Run workflow".
+# Çalıştığında, sistemde kayıtlı en son tarihten bugüne kadar olan tüm eksik
+# iş günlerini çeker ve işler.
 on:
+  schedule:
+    - cron: '0 6 * * 1-5'  # Hafta içi her gün 06:00 UTC (09:00 TR saati)
   workflow_dispatch: {}
 
 permissions:
@@ -24,9 +26,7 @@ jobs:
           python-version: '3.11'
 
       - name: Bağımlılıkları kur
-        run: |
-          pip install -r requirements.txt
-          playwright install --with-deps chromium
+        run: pip install -r requirements.txt
 
       - name: Eksik günleri çek ve raporu güncelle
         run: python scripts/fetch_and_build.py
@@ -35,6 +35,6 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/tefas_veri.json data/fon_valor.csv docs/index.html docs/karar.html docs/karsilastir.html
+          git add data/tefas_veri.json data/fon_valor.csv docs/index.html docs/karar.html docs/karsilastir.html docs/fon.html docs/disaaktar.html
           git diff --staged --quiet || git commit -m "TEFAS verisi güncellendi ($(date -u +%F))"
           git push

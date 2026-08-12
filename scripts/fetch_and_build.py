@@ -2,43 +2,48 @@
 TEFAS'tan (tefas.gov.tr) fiyat verisini ceker, data/tefas_veri.json'u gunceller
 ve docs/index.html raporunu yeniden uretir.
 
-BU SCRIPT OTOMATIK/ZAMANLANMIS CALISMAZ — sadece elle tetiklendiginde calisir
-(GitHub reposunda Actions sekmesinden "Run workflow" ile, ya da rapor
-sayfasindaki "Simdi Cek" butonuyla). Calistirildiginda, sistemde kayitli en
-son tarihten bugune en yakin is gunune kadar olan TUM eksik is gunlerini
-tek tek (gun gun) ceker ve isler — ornegin sistemde en son 9 Nisan verisi
-varken 13 Nisan'da calistirilirsa, 10-11-12-13 Nisan gunlerinin hepsini
-sirayla ceker (haftasonlari otomatik atlanir).
+TEFAS'in yeni (2026, Next.js tabanli) sitesi, kendi ön yüzünün kullandığı
+dogrudan bir JSON API sunuyor (yetkilendirme/API anahtari gerektirmez):
 
-Takip edilen fon listesi data/fon_listesi.csv dosyasindan okunur — YENI FON
-EKLEMEK ICIN sadece bu CSV'ye bir satir eklemeniz yeterlidir, kod
-degistirmenize gerek yoktur. Format:
+    POST https://www.tefas.gov.tr/api/funds/fonGnlBlgSiraliGetir
+
+Bu script bu API'yi düz bir HTTP istegiyle (requests) çağırır — tarayıcı ya
+da Playwright GEREKMEZ. Eski sürüm, TEFAS'in HTML sayfasını (fon-verileri)
+Playwright ile taklit ederek kazıyordu ve bulut ortamlarında (GitHub Actions
+dahil) bot korumasına (WAF) takılıp sürekli zaman aşımına uğruyordu. Bu API
+o korumaya tabi değil gibi görünüyor (birden fazla bağımsız kaynakla ve canlı
+testle doğrulandı — bkz. proje notları).
+
+Otomatik/zamanlanmış çalışabilir (GitHub Actions cron) ya da elle
+(Actions sekmesinden "Run workflow" ile) tetiklenebilir. Çalıştırıldığında,
+sistemde kayıtlı en son tarihten bugüne en yakın iş gününe kadar olan TÜM
+eksik iş günlerini tek istekte (gerekirse birkaç ~1 aylık parçaya bölünerek)
+çeker ve işler.
+
+Takip edilen fon listesi data/fon_listesi.csv dosyasından okunur — YENİ FON
+EKLEMEK İÇİN sadece bu CSV'ye bir satır eklemeniz yeterlidir, kod
+değiştirmenize gerek yoktur. Format:
 
     kod,sirket,risk
     HLL,Ziraat Portföy,1
     ...
 
-- kod: TEFAS fon kodu (buyuk harf)
-- sirket: rapor sayfasinda hangi basligin altinda gorunecegi (serbest metin)
-- risk: TEFAS'taki "Fonun Risk Degeri" (1-7), sadece bilgi amacli, bos birakilabilir
+- kod: TEFAS fon kodu (büyük harf)
+- sirket: rapor sayfasında hangi başlığın altında görüneceği (serbest metin)
+- risk: TEFAS'taki "Fonun Risk Değeri" (1-7), sadece bilgi amaçlı, boş bırakılabilir
 
-Fon adi (ad) TEFAS'tan otomatik cekilir, elle girmenize gerek yoktur.
+Fon adı (ad) TEFAS'tan otomatik çekilir, elle girmenize gerek yoktur.
 
-Playwright (headless Chromium) kullanir cunku TEFAS'in fon-verileri sayfasi
-istemci tarafinda (JS ile) render ediliyor ve API'si dogrudan HTTP istegine
-kapali/POST-only. Site ayrica bir bot korumasi (WAF) barindiriyor; bulut IP'leri
-(GitHub Actions dahil) bazen bu korumaya takilabilir. Bu durumda script o gunu
-atlayip diger gunlere devam eder; hicbir gun basarili olmazsa mevcut
-veri/rapor DEGISTIRILMEZ.
-
-Kullanim:
+Kullanım:
   python scripts/fetch_and_build.py
 """
-import asyncio
 import csv
 import os
 import sys
+import time
 from datetime import datetime, timedelta
+
+import requests
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import report  # noqa: E402
@@ -46,10 +51,21 @@ import report  # noqa: E402
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FON_LISTESI_FILE = os.path.join(BASE_DIR, "data", "fon_listesi.csv")
 
-USER_AGENT = (
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-    "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
-)
+INFO_URL = "https://www.tefas.gov.tr/api/funds/fonGnlBlgSiraliGetir"
+API_HEADERS = {
+    "Accept": "*/*",
+    "Content-Type": "application/json",
+    "Origin": "https://www.tefas.gov.tr",
+    "Referer": "https://www.tefas.gov.tr/tr/fon-verileri",
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"
+    ),
+}
+# TEFAS API'si tek istekte ~1 ay (30 gun) sinirlar; 28 gun koruyucu esik.
+MAX_DAYS_PER_REQUEST = 28
+# API dakikada 6 istek sinirlar; istekler arasi bu kadar bekleyerek asiliyoruz.
+REQUEST_INTERVAL_SECONDS = 11
 
 
 def load_fon_listesi():
@@ -76,192 +92,6 @@ def previous_business_day(d):
     return d
 
 
-def parse_rows(text, wanted_codes):
-    """get_page_text tarzı düz metinden fon kodu -> (fiyat, ad) çıkarır.
-    Satır düzeni: KOD / AD / TARİH / FİYAT / PAY SAYISI / KİŞİ SAYISI / TOPLAM DEĞER
-    """
-    lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
-    found = {}
-    wanted = set(wanted_codes)
-    for i, ln in enumerate(lines):
-        if ln in wanted and i + 3 < len(lines):
-            name = lines[i + 1]
-            price_line = lines[i + 3]
-            cleaned = price_line.replace(".", "").replace(",", ".")
-            try:
-                price = float(cleaned)
-            except ValueError:
-                continue
-            found[ln] = (price, name)
-    return found
-
-
-def parse_detail_page(text):
-    """fon-detayli-analiz/{KOD} sayfasının düz metninden (fiyat, ad) çıkarır.
-    Bu sayfa, Para Piyasası dışındaki şemsiye fon türlerinde (ör. Serbest Fon)
-    olup sfonTurKod=107 sorgusunda görünmeyen fonlar için yedek kaynaktır.
-    """
-    lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
-    name = None
-    for ln in lines:
-        if ln.isupper() and "PORTFÖY" in ln:
-            name = ln
-            break
-    price = None
-    for i, ln in enumerate(lines):
-        if ln.startswith("Son Fiyat") and i + 1 < len(lines):
-            cleaned = lines[i + 1].replace(".", "").replace(",", ".")
-            try:
-                price = float(cleaned)
-            except ValueError:
-                pass
-            break
-    return price, name
-
-
-async def fetch_single_fund_detail(page, kod):
-    """Tek bir fon için fon-detayli-analiz sayfasından fiyat/ad çeker (yedek yol)."""
-    await page.goto(f"https://www.tefas.gov.tr/tr/fon-detayli-analiz/{kod}",
-                     wait_until="networkidle", timeout=60000)
-    await page.wait_for_timeout(2500)
-    body_text = await page.inner_text("body")
-    if "Request Rejected" in body_text:
-        raise RuntimeError("TEFAS bot korumasi (WAF) istegi reddetti (Request Rejected).")
-    return parse_detail_page(body_text)
-
-
-async def fetch_prices_for_date(date_str, fund_codes):
-    """Ana kaynak: sfonTurKod=107 (Para Piyasası Şemsiye Fonu) sorgusu, tek
-    tarih, tüm sayfalar gezilir. Bu sorguda görünmeyen fonlar (ör. Serbest
-    Şemsiye Fonu altındaki para piyasası benzeri fonlar) için main() içinde
-    fon-detayli-analiz sayfası yedek olarak kullanılır.
-
-    NOT: TEFAS'in bot korumasi (WAF) bulut IP'lerini (GitHub Actions dahil)
-    bazen yavaslatiyor/engelliyor; bu da sayfanin "main" elementinin zamaninda
-    yuklenmemesine (Playwright TimeoutError) yol acabiliyor. Bu fonksiyon bu
-    durumu bir kez tekrar deneyip yine de basarisiz olursa anlasilir bir
-    RuntimeError'a ceviriyor, boylece main() temiz bir hata mesajiyla cikiyor
-    ve mevcut veri/rapor bozulmadan kaliyor.
-    """
-    from playwright.async_api import async_playwright, TimeoutError as PlaywrightTimeoutError
-
-    url = (
-        f"https://www.tefas.gov.tr/tr/fon-verileri?fundType=YAT&sfonTurKod=107"
-        f"&startDate={date_str}&endDate={date_str}"
-    )
-    async with async_playwright() as p:
-        # "Gizli mod": TEFAS'in korumasi, TEFAS.gov.tr'nin normal bir tarayicidan
-        # mi yoksa Playwright/Selenium gibi bir otomasyon aracindan mi geldigini
-        # ayirt edebiliyor gibi gorunuyor (gercek tarayicidan sorunsuz yukleniyor,
-        # Playwright'tan konumdan bagimsiz olarak zaman asimina ugruyor). Bu
-        # ayarlar en yaygin otomasyon izlerini (navigator.webdriver bayragi vb.)
-        # gizlemeye calisir.
-        browser = await p.chromium.launch(
-            headless=True,
-            args=[
-                "--disable-blink-features=AutomationControlled",
-                "--disable-features=IsolateOrigins,site-per-process",
-            ],
-        )
-        context = await browser.new_context(
-            user_agent=USER_AGENT,
-            locale="tr-TR",
-            viewport={"width": 1366, "height": 768},
-        )
-        await context.add_init_script(
-            """
-            Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
-            window.chrome = window.chrome || { runtime: {} };
-            Object.defineProperty(navigator, 'languages', { get: () => ['tr-TR', 'tr', 'en-US', 'en'] });
-            Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
-            const originalQuery = window.navigator.permissions.query;
-            window.navigator.permissions.query = (parameters) => (
-                parameters.name === 'notifications' ?
-                    Promise.resolve({ state: Notification.permission }) :
-                    originalQuery(parameters)
-            );
-            """
-        )
-        page = await context.new_page()
-        page.set_default_timeout(60000)
-        try:
-            await page.goto(url, wait_until="networkidle", timeout=60000)
-            await page.wait_for_timeout(3000)
-
-            body_text = await page.inner_text("body")
-            if "Request Rejected" in body_text:
-                raise RuntimeError("TEFAS bot korumasi (WAF) istegi reddetti (Request Rejected).")
-            if "sonuç bulunamadı" in body_text or "eşleşen fon verisi bulunamadı" in body_text:
-                return None  # o gun veri yok (tatil vb.)
-
-            found = {}
-            for _ in range(6):  # en fazla 6 sayfa gez (81+ fon icin yeterli)
-                try:
-                    main_text = await page.inner_text("main", timeout=60000)
-                except PlaywrightTimeoutError:
-                    # Sayfa gec yuklenmis olabilir, bir kez daha dene
-                    await page.wait_for_timeout(3000)
-                    main_text = await page.inner_text("main", timeout=60000)
-                found.update(parse_rows(main_text, fund_codes))
-                if len(found) >= len(fund_codes):
-                    break
-                next_btn = page.get_by_role("button", name="Sonraki")
-                if await next_btn.count() == 0:
-                    break
-                try:
-                    is_disabled = await next_btn.get_attribute("disabled")
-                except Exception:
-                    is_disabled = None
-                if is_disabled is not None:
-                    break
-                await next_btn.click()
-                await page.wait_for_timeout(2000)
-
-            # Yedek yol: ana sorguda bulunamayan (farkli semsiye fon turundeki)
-            # fonlar icin tek tek fon-detayli-analiz sayfasina bak (yavas ve
-            # nazik: en fazla 15 fon, aralarinda bekleme).
-            missing = [c for c in fund_codes if c not in found]
-            for kod in missing[:15]:
-                try:
-                    price, name = await fetch_single_fund_detail(page, kod)
-                except (RuntimeError, PlaywrightTimeoutError):
-                    break  # WAF devreye girdi veya zaman asimi, daha fazla denemeyelim
-                if price is not None:
-                    found[kod] = (price, name or kod)
-                await page.wait_for_timeout(2500)
-
-            return found
-        except PlaywrightTimeoutError as e:
-            raise RuntimeError(
-                "TEFAS sayfasi zaman asimina ugradi (60sn, bir tekrar denemesine ragmen) - "
-                "TEFAS'in bot korumasi (WAF) GitHub Actions bulut IP'sini engelliyor olabilir. "
-                "Bu genelde gecici bir durumdur, bir sonraki otomatik calistirmada duzelebilir. "
-                f"(Teknik detay: {e.__class__.__name__})"
-            )
-        finally:
-            await browser.close()
-
-
-async def fetch_with_retries(date_str, fund_codes, max_attempts=3, delay_seconds=25):
-    """fetch_prices_for_date'i, TEFAS'in bot korumasi/zaman asimi (RuntimeError)
-    durumunda, her defasinda TAMAMEN YENI bir tarayici oturumuyla birden fazla
-    kez dener. Denemeler arasinda bekleme, gecici WAF engellemelerinin/agir
-    yuklerin gecmesine firsat tanir. Tum denemeler basarisiz olursa son hatayi
-    yeniden yukseltir.
-    """
-    last_err = None
-    for attempt in range(1, max_attempts + 1):
-        try:
-            return await fetch_prices_for_date(date_str, fund_codes)
-        except RuntimeError as e:
-            last_err = e
-            print(f"  Deneme {attempt}/{max_attempts} basarisiz: {e}")
-            if attempt < max_attempts:
-                print(f"  {delay_seconds} saniye beklenip yeni bir tarayici oturumuyla tekrar denenecek...")
-                await asyncio.sleep(delay_seconds)
-    raise last_err
-
-
 def business_days_between(start_exclusive, end_inclusive):
     """start_exclusive gununden SONRAKI gunden baslayarak end_inclusive'a kadar
     (o dahil) tum hafta ici gunleri (Pzt-Cuma), artan sirada dondurur."""
@@ -274,22 +104,103 @@ def business_days_between(start_exclusive, end_inclusive):
     return days
 
 
-async def main():
-    """Sistemde kayitli en son tarihten, bugune en yakin is gunune kadar olan
-    TUM eksik is gunlerini tek tek (gun gun) ceker ve isler. Otomatik/zamanlanmis
-    calistirma yoktur — bu script sadece elle (Actions sekmesinden "Run workflow"
-    ile ya da rapor sayfasindaki "Simdi Cek" butonuyla) tetiklendiginde calisir.
-    Bir gun basarisiz olsa bile diger gunlerin denenmesine devam edilir; basarili
-    olan gunler her adimda kaydedilir, boylece kismi ilerleme kaybolmaz.
+class TefasAPIError(RuntimeError):
+    pass
+
+
+def _post_with_retry(body, max_retry=5, timeout=60):
+    session = requests.Session()
+    last_err = None
+    for attempt in range(max_retry):
+        try:
+            r = session.post(INFO_URL, headers=API_HEADERS, json=body, timeout=timeout)
+        except (requests.ConnectionError, requests.Timeout) as e:
+            last_err = e
+            print(f"  Ag hatasi (deneme {attempt + 1}/{max_retry}): {e}")
+            time.sleep(min(2 ** attempt, 30))
+            continue
+
+        if r.status_code == 429:
+            reset = r.headers.get("ratelimit-reset")
+            wait = int(reset) + 1 if (reset and reset.isdigit()) else 30
+            print(f"  Rate limit asildi, {wait}sn bekleniyor...")
+            time.sleep(wait)
+            continue
+
+        if r.status_code == 200 and not r.text.strip():
+            print("  Bos yanit alindi, tekrar deneniyor...")
+            time.sleep(15)
+            continue
+
+        r.raise_for_status()
+        try:
+            return r.json()
+        except ValueError:
+            print("  JSON parse hatasi, tekrar deneniyor...")
+            time.sleep(15)
+            continue
+
+    raise TefasAPIError(f"TEFAS API {max_retry} denemeden sonra basarisiz: {last_err}")
+
+
+def fetch_range(start_date, end_date):
+    """start_date..end_date (dahil) araligindaki TUM YAT fonlarinin gunluk
+    fiyat/ad bilgisini ceker. {fon_kodu: {tarih_str: (fiyat, ad)}} seklinde
+    dondurur. Tek istekte tum fonlar (fonKodu filtresi yok) cekilir; bu hem
+    daha az istek hem de "Serbest Fon" gibi ozel kategorilerdeki fonlar icin
+    (ör. DCB, YPT) ayri bir yedek sorguya gerek birakmiyor.
+    """
+    out = {}
+    cur = start_date
+    first_request = True
+    while cur <= end_date:
+        chunk_end = min(cur + timedelta(days=MAX_DAYS_PER_REQUEST - 1), end_date)
+        if not first_request:
+            time.sleep(REQUEST_INTERVAL_SECONDS)
+        first_request = False
+
+        body = {
+            "fonTipi": "YAT", "fonKodu": None, "aramaMetni": None, "fonTurKod": None,
+            "fonGrubu": None, "sfonTurKod": None, "fonTurAciklama": None, "kurucuKod": None,
+            "basTarih": cur.strftime("%Y%m%d"), "bitTarih": chunk_end.strftime("%Y%m%d"),
+            "basSira": 1, "bitSira": 100000, "dil": "TR",
+            "sFonTurKod": "", "fonKod": "", "fonGrup": "", "fonUnvanTip": "",
+        }
+        print(f"  API istegi: {cur} - {chunk_end}")
+        data = _post_with_retry(body)
+
+        err = data.get("errorMessage")
+        empty_markers = ("out of bounds", "bulunamadı", "bulunamadi")
+        is_empty = err and any(m in err.lower() for m in empty_markers)
+        if err and not is_empty:
+            raise TefasAPIError(f"TEFAS API hatasi: {err}")
+
+        rows = data.get("resultList") or []
+        print(f"    {len(rows)} kayit alindi.")
+        for row in rows:
+            kod = row.get("fonKodu")
+            tarih = row.get("tarih")
+            fiyat = row.get("fiyat")
+            ad = row.get("fonUnvan")
+            if kod and tarih and fiyat is not None:
+                out.setdefault(kod, {})[tarih] = (float(fiyat), ad)
+
+        cur = chunk_end + timedelta(days=1)
+    return out
+
+
+def main():
+    """Sistemde kayıtlı en son tarihten, bugüne en yakın iş gününe kadar olan
+    TÜM eksik iş günlerini TEFAS API'sinden çeker ve işler. Elle (Actions
+    sekmesinden "Run workflow" ile) ya da otomatik (cron) tetiklenebilir.
     """
     fon_listesi = load_fon_listesi()
-    fund_codes = list(fon_listesi.keys())
+    fund_codes = set(fon_listesi.keys())
     print(f"Takip edilen fon sayisi (data/fon_listesi.csv): {len(fund_codes)}")
 
     data = report.load_data()
     data.setdefault("fonlar", {})
 
-    # Sistemde en son hangi tarihe kadar veri var?
     last_known = data.get("son_guncelleme") or ""
     if not last_known:
         all_dates = [h["tarih"] for f in data["fonlar"].values() for h in f.get("gecmis", [])]
@@ -300,7 +211,6 @@ async def main():
     if last_known:
         last_known_date = datetime.strptime(last_known, "%Y-%m-%d").date()
     else:
-        # Sistemde hic veri yoksa, sadece en son is gununu cek (baslangic noktasi olsun)
         last_known_date = end_date - timedelta(days=1)
 
     target_dates = business_days_between(last_known_date, end_date)
@@ -312,78 +222,62 @@ async def main():
     print(
         f"Sistemde en son {last_known or 'hic veri yok'} tarihli veri var. "
         f"{target_dates[0].strftime('%Y-%m-%d')} ile {target_dates[-1].strftime('%Y-%m-%d')} "
-        f"arasindaki {len(target_dates)} is gunu tek tek cekilecek."
+        f"arasindaki {len(target_dates)} is gunu cekilecek."
     )
 
+    try:
+        fetched = fetch_range(target_dates[0], target_dates[-1])
+    except TefasAPIError as e:
+        print(f"\nHATA: {e}")
+        print("Rapor guncellenmedi.")
+        sys.exit(1)
+
+    target_date_strs = [d.strftime("%Y-%m-%d") for d in target_dates]
     succeeded_dates = []
-    failed_dates = []
+    empty_dates = []
 
-    for d in target_dates:
-        date_str = d.strftime("%Y-%m-%d")
-        print(f"\nDeneniyor: {date_str}")
-        try:
-            r = await fetch_with_retries(date_str, fund_codes, max_attempts=3, delay_seconds=25)
-        except RuntimeError as e:
-            print(f"HATA ({date_str}): {e}")
-            failed_dates.append(date_str)
-            continue  # bu gunu atla, bir sonraki gune devam et
+    for date_str in target_date_strs:
+        prices_today = {}
+        for kod in fund_codes:
+            entry = fetched.get(kod, {})
+            if date_str in entry:
+                prices_today[kod] = entry[date_str]
 
-        if not r:
+        if not prices_today:
             print(f"{date_str} icin veri yok (resmi tatil vb. olabilir), atlaniyor.")
+            empty_dates.append(date_str)
             continue
 
-        if len(r) < len(fund_codes) * 0.8:  # en az %80'i bulunduysa yeterli say
-            print(f"{date_str} icin yeterli veri bulunamadi ({len(r)}/{len(fund_codes)}), atlaniyor.")
-            failed_dates.append(date_str)
-            continue
-
-        missing = set(fund_codes) - set(r.keys())
+        missing = fund_codes - set(prices_today.keys())
         if missing:
             print(f"UYARI ({date_str}): su fonlar icin fiyat bulunamadi: {sorted(missing)}")
 
-        # data/tefas_veri.json'u guncelle: fiyat + ad (TEFAS'tan) + sirket/risk (CSV'den)
-        for kod, (price, name) in r.items():
+        for kod, (price, ad) in prices_today.items():
             meta = fon_listesi.get(kod, {"sirket": "Diğer", "risk": None})
-            entry = data["fonlar"].setdefault(kod, {"ad": name, "gecmis": []})
-            entry["ad"] = name
-            entry["sirket"] = meta["sirket"]
-            entry["risk"] = meta["risk"]
-            hist = entry["gecmis"]
+            fentry = data["fonlar"].setdefault(kod, {"ad": ad or kod, "gecmis": []})
+            fentry["ad"] = ad or fentry.get("ad") or kod
+            fentry["sirket"] = meta["sirket"]
+            fentry["risk"] = meta["risk"]
+            hist = fentry["gecmis"]
             hist[:] = [h for h in hist if h["tarih"] != date_str]
             hist.append({"tarih": date_str, "fiyat": price})
             hist.sort(key=lambda h: h["tarih"])
-        # CSV'den cikarilmis (artik takip edilmeyen) fonlari raporda gostermemek icin
-        # burada silmiyoruz, sadece report.py CSV'de olmayanlari "Diğer" altina koyar.
+
         data["son_guncelleme"] = date_str
         report.save_data(data)  # her basarili gunden sonra kaydet, kismi ilerleme kaybolmasin
         succeeded_dates.append(date_str)
 
     if not succeeded_dates:
-        print("\nHicbir gun icin veri cekilemedi. Rapor guncellenmedi.")
-        sys.exit(1)
+        print("\nHicbir gun icin veri bulunamadi (hepsi tatil olabilir, ya da bir sorun var). Rapor guncellenmedi.")
+        return
 
-    print(f"\nBasariyla cekilen gunler ({len(succeeded_dates)}): {succeeded_dates}")
-    if failed_dates:
-        print(
-            f"Cekilemeyen gunler ({len(failed_dates)}): {failed_dates} — "
-            "bir sonraki calistirmada tekrar denenecek."
-        )
+    print(f"\nBasariyla islenen gunler ({len(succeeded_dates)}): {succeeded_dates}")
+    if empty_dates:
+        print(f"Veri bulunamayan gunler (muhtemelen tatil) ({len(empty_dates)}): {empty_dates}")
 
     rows = report.compute_rows(data)
-    # Sadece CSV'deki fonlari rapora dahil et
-    rows = [r for r in rows if r["kod"] in fon_listesi]
-    html = report.render_html(data, rows)
-    os.makedirs(os.path.dirname(report.REPORT_FILE), exist_ok=True)
-    with open(report.REPORT_FILE, "w", encoding="utf-8") as f:
-        f.write(html)
-
-    karar_html = report.render_karar_html(rows)
-    with open(report.KARAR_FILE, "w", encoding="utf-8") as f:
-        f.write(karar_html)
-
-    karsilastir_html = report.render_karsilastir_html(rows)
-    with open(report.KARSILASTIR_FILE, "w", encoding="utf-8") as f:
-        f.write(karsilastir_html)
+    rows = [r for r in rows if r["kod"] in fund_codes]
+    report.build()
 
     print(f"\nRapor guncellendi (son tarih: {data['son_guncelleme']}), {len(rows)} fon:")
     for r in sorted(rows, key=lambda r: (r["sirket"], -(r["gunluk_getiri"] or -999))):
@@ -392,4 +286,4 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
