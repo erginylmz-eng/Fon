@@ -1,6 +1,14 @@
 """
-TEFAS'tan (tefas.gov.tr) gunluk fiyat verisini ceker, data/tefas_veri.json'u
-gunceller ve docs/index.html raporunu yeniden uretir.
+TEFAS'tan (tefas.gov.tr) fiyat verisini ceker, data/tefas_veri.json'u gunceller
+ve docs/index.html raporunu yeniden uretir.
+
+BU SCRIPT OTOMATIK/ZAMANLANMIS CALISMAZ — sadece elle tetiklendiginde calisir
+(GitHub reposunda Actions sekmesinden "Run workflow" ile, ya da rapor
+sayfasindaki "Simdi Cek" butonuyla). Calistirildiginda, sistemde kayitli en
+son tarihten bugune en yakin is gunune kadar olan TUM eksik is gunlerini
+tek tek (gun gun) ceker ve isler — ornegin sistemde en son 9 Nisan verisi
+varken 13 Nisan'da calistirilirsa, 10-11-12-13 Nisan gunlerinin hepsini
+sirayla ceker (haftasonlari otomatik atlanir).
 
 Takip edilen fon listesi data/fon_listesi.csv dosyasindan okunur — YENI FON
 EKLEMEK ICIN sadece bu CSV'ye bir satir eklemeniz yeterlidir, kod
@@ -19,8 +27,9 @@ Fon adi (ad) TEFAS'tan otomatik cekilir, elle girmenize gerek yoktur.
 Playwright (headless Chromium) kullanir cunku TEFAS'in fon-verileri sayfasi
 istemci tarafinda (JS ile) render ediliyor ve API'si dogrudan HTTP istegine
 kapali/POST-only. Site ayrica bir bot korumasi (WAF) barindiriyor; bulut IP'leri
-(GitHub Actions dahil) bazen bu korumaya takilabilir. Bu durumda script hata
-verip cikacak, mevcut veri/rapor DEGISTIRILMEYECEK.
+(GitHub Actions dahil) bazen bu korumaya takilabilir. Bu durumda script o gunu
+atlayip diger gunlere devam eder; hicbir gun basarili olmazsa mevcut
+veri/rapor DEGISTIRILMEZ.
 
 Kullanim:
   python scripts/fetch_and_build.py
@@ -203,58 +212,132 @@ async def fetch_prices_for_date(date_str, fund_codes):
             await browser.close()
 
 
+async def fetch_with_retries(date_str, fund_codes, max_attempts=3, delay_seconds=25):
+    """fetch_prices_for_date'i, TEFAS'in bot korumasi/zaman asimi (RuntimeError)
+    durumunda, her defasinda TAMAMEN YENI bir tarayici oturumuyla birden fazla
+    kez dener. Denemeler arasinda bekleme, gecici WAF engellemelerinin/agir
+    yuklerin gecmesine firsat tanir. Tum denemeler basarisiz olursa son hatayi
+    yeniden yukseltir.
+    """
+    last_err = None
+    for attempt in range(1, max_attempts + 1):
+        try:
+            return await fetch_prices_for_date(date_str, fund_codes)
+        except RuntimeError as e:
+            last_err = e
+            print(f"  Deneme {attempt}/{max_attempts} basarisiz: {e}")
+            if attempt < max_attempts:
+                print(f"  {delay_seconds} saniye beklenip yeni bir tarayici oturumuyla tekrar denenecek...")
+                await asyncio.sleep(delay_seconds)
+    raise last_err
+
+
+def business_days_between(start_exclusive, end_inclusive):
+    """start_exclusive gununden SONRAKI gunden baslayarak end_inclusive'a kadar
+    (o dahil) tum hafta ici gunleri (Pzt-Cuma), artan sirada dondurur."""
+    days = []
+    d = start_exclusive + timedelta(days=1)
+    while d <= end_inclusive:
+        if d.weekday() < 5:
+            days.append(d)
+        d += timedelta(days=1)
+    return days
+
+
 async def main():
+    """Sistemde kayitli en son tarihten, bugune en yakin is gunune kadar olan
+    TUM eksik is gunlerini tek tek (gun gun) ceker ve isler. Otomatik/zamanlanmis
+    calistirma yoktur — bu script sadece elle (Actions sekmesinden "Run workflow"
+    ile ya da rapor sayfasindaki "Simdi Cek" butonuyla) tetiklendiginde calisir.
+    Bir gun basarisiz olsa bile diger gunlerin denenmesine devam edilir; basarili
+    olan gunler her adimda kaydedilir, boylece kismi ilerleme kaybolmaz.
+    """
     fon_listesi = load_fon_listesi()
     fund_codes = list(fon_listesi.keys())
     print(f"Takip edilen fon sayisi (data/fon_listesi.csv): {len(fund_codes)}")
 
-    target = previous_business_day(datetime.utcnow() + timedelta(hours=3))  # TR saati (UTC+3)
-
-    result = None
-    used_date = None
-    for attempt in range(5):
-        date_str = target.strftime("%Y-%m-%d")
-        print(f"Deneniyor: {date_str}")
-        try:
-            r = await fetch_prices_for_date(date_str, fund_codes)
-        except RuntimeError as e:
-            print(f"HATA: {e}")
-            print("GitHub Actions IP'si TEFAS tarafindan engellenmis olabilir. "
-                  "Iscilik durduruluyor, mevcut veri/rapor degistirilmedi.")
-            sys.exit(1)
-
-        if r and len(r) >= len(fund_codes) * 0.8:  # en az %80'i bulunduysa yeterli say
-            result = r
-            used_date = date_str
-            break
-        print(f"{date_str} icin yeterli veri bulunamadi ({len(r or {})}/{len(fund_codes)}), bir onceki is gunune geciliyor.")
-        target = previous_business_day(target)
-
-    if not result:
-        print("5 denemede veri bulunamadi. Cikiliyor (rapor guncellenmedi).")
-        sys.exit(1)
-
-    missing = set(fund_codes) - set(result.keys())
-    if missing:
-        print(f"UYARI: su fonlar icin fiyat bulunamadi: {sorted(missing)}")
-
-    # data/tefas_veri.json'u guncelle: fiyat + ad (TEFAS'tan) + sirket/risk (CSV'den)
     data = report.load_data()
     data.setdefault("fonlar", {})
-    for kod, (price, name) in result.items():
-        meta = fon_listesi.get(kod, {"sirket": "Diğer", "risk": None})
-        entry = data["fonlar"].setdefault(kod, {"ad": name, "gecmis": []})
-        entry["ad"] = name
-        entry["sirket"] = meta["sirket"]
-        entry["risk"] = meta["risk"]
-        hist = entry["gecmis"]
-        hist[:] = [h for h in hist if h["tarih"] != used_date]
-        hist.append({"tarih": used_date, "fiyat": price})
-        hist.sort(key=lambda h: h["tarih"])
-    # CSV'den cikarilmis (artik takip edilmeyen) fonlari raporda gostermemek icin
-    # burada silmiyoruz, sadece report.py CSV'de olmayanlari "Diğer" altina koyar.
-    data["son_guncelleme"] = used_date
-    report.save_data(data)
+
+    # Sistemde en son hangi tarihe kadar veri var?
+    last_known = data.get("son_guncelleme") or ""
+    if not last_known:
+        all_dates = [h["tarih"] for f in data["fonlar"].values() for h in f.get("gecmis", [])]
+        last_known = max(all_dates) if all_dates else ""
+
+    end_date = previous_business_day(datetime.utcnow() + timedelta(hours=3)).date()  # TR saati (UTC+3)
+
+    if last_known:
+        last_known_date = datetime.strptime(last_known, "%Y-%m-%d").date()
+    else:
+        # Sistemde hic veri yoksa, sadece en son is gununu cek (baslangic noktasi olsun)
+        last_known_date = end_date - timedelta(days=1)
+
+    target_dates = business_days_between(last_known_date, end_date)
+
+    if not target_dates:
+        print(f"Veri zaten guncel (son tarih: {last_known or '—'}). Cekilecek yeni is gunu yok.")
+        return
+
+    print(
+        f"Sistemde en son {last_known or 'hic veri yok'} tarihli veri var. "
+        f"{target_dates[0].strftime('%Y-%m-%d')} ile {target_dates[-1].strftime('%Y-%m-%d')} "
+        f"arasindaki {len(target_dates)} is gunu tek tek cekilecek."
+    )
+
+    succeeded_dates = []
+    failed_dates = []
+
+    for d in target_dates:
+        date_str = d.strftime("%Y-%m-%d")
+        print(f"\nDeneniyor: {date_str}")
+        try:
+            r = await fetch_with_retries(date_str, fund_codes, max_attempts=3, delay_seconds=25)
+        except RuntimeError as e:
+            print(f"HATA ({date_str}): {e}")
+            failed_dates.append(date_str)
+            continue  # bu gunu atla, bir sonraki gune devam et
+
+        if not r:
+            print(f"{date_str} icin veri yok (resmi tatil vb. olabilir), atlaniyor.")
+            continue
+
+        if len(r) < len(fund_codes) * 0.8:  # en az %80'i bulunduysa yeterli say
+            print(f"{date_str} icin yeterli veri bulunamadi ({len(r)}/{len(fund_codes)}), atlaniyor.")
+            failed_dates.append(date_str)
+            continue
+
+        missing = set(fund_codes) - set(r.keys())
+        if missing:
+            print(f"UYARI ({date_str}): su fonlar icin fiyat bulunamadi: {sorted(missing)}")
+
+        # data/tefas_veri.json'u guncelle: fiyat + ad (TEFAS'tan) + sirket/risk (CSV'den)
+        for kod, (price, name) in r.items():
+            meta = fon_listesi.get(kod, {"sirket": "Diğer", "risk": None})
+            entry = data["fonlar"].setdefault(kod, {"ad": name, "gecmis": []})
+            entry["ad"] = name
+            entry["sirket"] = meta["sirket"]
+            entry["risk"] = meta["risk"]
+            hist = entry["gecmis"]
+            hist[:] = [h for h in hist if h["tarih"] != date_str]
+            hist.append({"tarih": date_str, "fiyat": price})
+            hist.sort(key=lambda h: h["tarih"])
+        # CSV'den cikarilmis (artik takip edilmeyen) fonlari raporda gostermemek icin
+        # burada silmiyoruz, sadece report.py CSV'de olmayanlari "Diğer" altina koyar.
+        data["son_guncelleme"] = date_str
+        report.save_data(data)  # her basarili gunden sonra kaydet, kismi ilerleme kaybolmasin
+        succeeded_dates.append(date_str)
+
+    if not succeeded_dates:
+        print("\nHicbir gun icin veri cekilemedi. Rapor guncellenmedi.")
+        sys.exit(1)
+
+    print(f"\nBasariyla cekilen gunler ({len(succeeded_dates)}): {succeeded_dates}")
+    if failed_dates:
+        print(
+            f"Cekilemeyen gunler ({len(failed_dates)}): {failed_dates} — "
+            "bir sonraki calistirmada tekrar denenecek."
+        )
 
     rows = report.compute_rows(data)
     # Sadece CSV'deki fonlari rapora dahil et
@@ -272,7 +355,7 @@ async def main():
     with open(report.KARSILASTIR_FILE, "w", encoding="utf-8") as f:
         f.write(karsilastir_html)
 
-    print(f"\nRapor guncellendi ({used_date}), {len(rows)} fon:")
+    print(f"\nRapor guncellendi (son tarih: {data['son_guncelleme']}), {len(rows)} fon:")
     for r in sorted(rows, key=lambda r: (r["sirket"], -(r["gunluk_getiri"] or -999))):
         gr = f"{r['gunluk_getiri']:.4f}%" if r["gunluk_getiri"] is not None else "—"
         print(f"  [{r['sirket']:22s}] {r['kod']:5s} {gr:>10s}  {r['fiyat']:.6f}")
