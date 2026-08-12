@@ -51,6 +51,17 @@
   .empty-msg { color: var(--muted); font-size: 13px; padding: 20px 0; text-align: center; }
   .fon-link { color: var(--accent); text-decoration: none; font-size: 12px; }
   .fon-link:hover { text-decoration: underline; }
+  #compareResult { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 0 -4px; }
+  #compareResult table { min-width: 520px; }
+  @media (max-width: 640px) {
+    body { padding: 16px; }
+    h1 { font-size: 18px; }
+    .subtitle { font-size: 12px; }
+    .card { padding: 14px; }
+    .select-col { min-width: 100%; }
+    table { font-size: 12px; }
+    th, td { padding: 8px 6px; }
+  }
 </style>
 </head>
 <body>

@@ -141,6 +141,7 @@ def render_html(data, rows):
       <span class="acc-arrow">&#9662;</span>
     </div>
     <div class="acc-body">
+      <div class="table-scroll">
       <table>
         <thead>
           <tr>
@@ -157,6 +158,7 @@ def render_html(data, rows):
         </thead>
         <tbody id="tbody-{_slug(sirket)}"></tbody>
       </table>
+      </div>
     </div>
   </div>"""
 
@@ -272,6 +274,22 @@ def render_html(data, rows):
   .card.accordion .acc-body {{ display: none; margin-top: 16px; }}
   .card.accordion.open .acc-body {{ display: block; }}
   .card.accordion.open .acc-arrow {{ transform: rotate(180deg); color: var(--accent); }}
+  .table-scroll {{ overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 0 -4px; }}
+  .table-scroll table {{ min-width: 680px; }}
+  @media (max-width: 640px) {{
+    body {{ padding: 16px; }}
+    h1 {{ font-size: 18px; }}
+    .subtitle {{ font-size: 12px; }}
+    .card {{ padding: 14px; }}
+    .stat {{ min-width: 130px; padding: 12px 14px; }}
+    .stat .value {{ font-size: 17px; }}
+    .btn {{ padding: 9px 14px; font-size: 12px; }}
+    table {{ font-size: 12px; }}
+    th, td {{ padding: 8px 6px; }}
+    .period-btn {{ padding: 8px 12px; font-size: 12px; }}
+    .toc a {{ padding: 5px 10px; font-size: 11px; }}
+    .chart-wrap {{ height: 300px; }}
+  }}
 </style>
 </head>
 <body>
@@ -601,6 +619,13 @@ def render_karar_html(rows):
   .loading.show {{ display: block; }}
   .err {{ color: var(--neg); font-size: 13px; margin-top: 16px; }}
   .help {{ font-size: 12px; color: var(--muted); margin-top: 14px; line-height: 1.6; }}
+  @media (max-width: 640px) {{
+    body {{ padding: 16px; }}
+    h1 {{ font-size: 18px; }}
+    .subtitle {{ font-size: 12px; }}
+    .card {{ padding: 14px; }}
+    .btn {{ padding: 9px 14px; font-size: 12px; }}
+  }}
 </style>
 </head>
 <body>
@@ -816,6 +841,17 @@ def render_karsilastir_html(rows):
   .empty-msg {{ color: var(--muted); font-size: 13px; padding: 20px 0; text-align: center; }}
   .fon-link {{ color: var(--accent); text-decoration: none; font-size: 12px; }}
   .fon-link:hover {{ text-decoration: underline; }}
+  #compareResult {{ overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 0 -4px; }}
+  #compareResult table {{ min-width: 520px; }}
+  @media (max-width: 640px) {{
+    body {{ padding: 16px; }}
+    h1 {{ font-size: 18px; }}
+    .subtitle {{ font-size: 12px; }}
+    .card {{ padding: 14px; }}
+    .select-col {{ min-width: 100%; }}
+    table {{ font-size: 12px; }}
+    th, td {{ padding: 8px 6px; }}
+  }}
 </style>
 </head>
 <body>
@@ -1108,6 +1144,17 @@ def render_fon_detay_html(rows):
   .fon-link:hover {{ text-decoration: underline; }}
   .not-found {{ color: var(--muted); font-size: 14px; }}
   footer {{ color: var(--muted); font-size: 12px; margin-top: 24px; }}
+  @media (max-width: 640px) {{
+    body {{ padding: 16px; }}
+    h1 {{ font-size: 18px; }}
+    .subtitle {{ font-size: 12px; }}
+    .card {{ padding: 14px; }}
+    .stat {{ min-width: 120px; padding: 12px 14px; }}
+    .stat .value {{ font-size: 16px; }}
+    table {{ font-size: 12px; }}
+    th, td {{ padding: 8px 6px; }}
+    .chart-wrap {{ height: 280px; }}
+  }}
 </style>
 </head>
 <body>
@@ -1271,6 +1318,13 @@ def render_disaaktar_html(rows):
   .help-text {{ font-size: 12px; color: var(--muted); margin-top: 10px; line-height: 1.6; }}
   .pos {{ color: var(--pos); }}
   .neg {{ color: var(--neg); }}
+  @media (max-width: 640px) {{
+    body {{ padding: 16px; }}
+    h1 {{ font-size: 18px; }}
+    .subtitle {{ font-size: 12px; }}
+    .card {{ padding: 14px; }}
+    .select-col {{ min-width: 100%; }}
+  }}
 </style>
 </head>
 <body>
