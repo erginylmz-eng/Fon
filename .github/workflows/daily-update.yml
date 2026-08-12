@@ -1,9 +1,11 @@
-name: TEFAS Günlük Güncelleme
+name: TEFAS Veri Güncelleme (Elle Çalıştır)
 
+# NOT: Otomatik/zamanlanmış çalıştırma KALDIRILDI. Bu workflow artık sadece
+# elle tetiklendiğinde çalışır: ya bu repoda "Actions" sekmesinden
+# "Run workflow" ile, ya da rapor sayfasındaki "Şimdi Çek" butonuyla.
+# Çalıştığında, sistemde kayıtlı en son tarihten bugüne kadar olan tüm
+# eksik iş günlerini tek tek çeker ve işler.
 on:
-  schedule:
-    # 09:00 Türkiye saati (UTC+3) = 06:00 UTC, hafta içi (Pzt-Cuma)
-    - cron: '0 6 * * 1-5'
   workflow_dispatch: {}
 
 permissions:
@@ -26,7 +28,7 @@ jobs:
           pip install -r requirements.txt
           playwright install --with-deps chromium
 
-      - name: Veriyi çek ve raporu güncelle
+      - name: Eksik günleri çek ve raporu güncelle
         run: python scripts/fetch_and_build.py
 
       - name: Değişiklikleri commit'le ve pushla
@@ -34,5 +36,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add data/tefas_veri.json data/fon_valor.csv docs/index.html docs/karar.html docs/karsilastir.html
-          git diff --staged --quiet || git commit -m "Günlük TEFAS verisi güncellendi ($(date -u +%F))"
+          git diff --staged --quiet || git commit -m "TEFAS verisi güncellendi ($(date -u +%F))"
           git push
