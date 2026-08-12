@@ -10,6 +10,7 @@ DATA_FILE = os.path.join(BASE_DIR, "data", "tefas_veri.json")
 REPORT_FILE = os.path.join(BASE_DIR, "docs", "index.html")
 KARAR_FILE = os.path.join(BASE_DIR, "docs", "karar.html")
 KARSILASTIR_FILE = os.path.join(BASE_DIR, "docs", "karsilastir.html")
+FON_DETAY_FILE = os.path.join(BASE_DIR, "docs", "fon.html")
 VALOR_FILE = os.path.join(BASE_DIR, "data", "fon_valor.csv")
 
 
@@ -180,8 +181,8 @@ def render_html(data, rows):
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root {{
-    --bg: #0f1420; --card: #171d2b; --border: #2a3243; --text: #e6e9ef;
-    --muted: #8b93a7; --pos: #3ddc84; --neg: #ff5c72; --accent: #4f8cff; --warn: #f5a623;
+    --bg: #f7f5fb; --card: #ffffff; --border: #e3dff2; --text: #443f5e;
+    --muted: #8f88a3; --pos: #3f9973; --neg: #c85a72; --accent: #5b7fd1; --warn: #c78f4a;
   }}
   * {{ box-sizing: border-box; }}
   body {{
@@ -193,13 +194,13 @@ def render_html(data, rows):
   .summary {{ display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }}
   .stat {{
     background: var(--card); border: 1px solid var(--border); border-radius: 10px;
-    padding: 14px 18px; min-width: 150px;
+    padding: 14px 18px; min-width: 150px; box-shadow: 0 1px 3px rgba(68,63,94,0.06);
   }}
   .stat .label {{ color: var(--muted); font-size: 12px; margin-bottom: 6px; }}
   .stat .value {{ font-size: 20px; font-weight: 600; }}
   .card {{
     background: var(--card); border: 1px solid var(--border); border-radius: 12px;
-    padding: 20px; margin-bottom: 20px;
+    padding: 20px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(68,63,94,0.06);
   }}
   .card h2 {{ font-size: 15px; margin: 0 0 16px 0; color: var(--text); font-weight: 700; }}
   .card h2 .muted {{ color: var(--muted); font-weight: 500; font-size: 13px; }}
@@ -209,7 +210,7 @@ def render_html(data, rows):
     border-bottom: 1px solid var(--border); font-size: 11px; text-transform: uppercase; letter-spacing: .03em;
   }}
   td {{ padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }}
-  tr:hover td {{ background: rgba(255,255,255,0.02); }}
+  tr:hover td {{ background: rgba(91,127,209,0.05); }}
   .code {{ font-weight: 700; color: var(--accent); }}
   .code-link {{ font-weight: 700; color: var(--accent); text-decoration: none; }}
   .code-link:hover {{ text-decoration: underline; }}
@@ -253,9 +254,9 @@ def render_html(data, rows):
     font-size: 13px; font-weight: 600; margin-bottom: 20px; border: 1px solid var(--border);
   }}
   .update-status .dot {{ width: 8px; height: 8px; border-radius: 50%; background: currentColor; display: inline-block; }}
-  .update-status.fresh {{ background: rgba(61,220,132,0.08); border-color: var(--pos); color: var(--pos); }}
-  .update-status.stale {{ background: rgba(245,166,35,0.08); border-color: var(--warn); color: var(--warn); }}
-  .update-status.old {{ background: rgba(255,92,114,0.08); border-color: var(--neg); color: var(--neg); }}
+  .update-status.fresh {{ background: rgba(63,153,115,0.12); border-color: var(--pos); color: var(--pos); }}
+  .update-status.stale {{ background: rgba(199,143,74,0.14); border-color: var(--warn); color: var(--warn); }}
+  .update-status.old {{ background: rgba(200,90,114,0.12); border-color: var(--neg); color: var(--neg); }}
   .period-row {{ display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }}
   .period-btn {{
     padding: 9px 18px; border-radius: 8px; border: 1px solid var(--border); background: transparent;
@@ -346,8 +347,8 @@ def render_html(data, rows):
   <div class="card">
     <h2 id="chartTitle">Tüm Fonlar — Günlük Getiri Karşılaştırması</h2>
     <div class="legend">
-      <span><span class="swatch" style="background:#4f8cff"></span>Risk 1/7</span>
-      <span><span class="swatch" style="background:#f5a623"></span>Risk 2/7</span>
+      <span><span class="swatch" style="background:#5b7fd1"></span>Risk 1/7</span>
+      <span><span class="swatch" style="background:#c78f4a"></span>Risk 2/7</span>
     </div>
     <div class="chart-wrap"><canvas id="returnChart"></canvas></div>
   </div>
@@ -539,8 +540,8 @@ def render_html(data, rows):
   }}
   const PERIOD_DAYS = {{ gunluk: 1, haftalik: 7, aylik: 30, yillik: 365 }};
   const PERIOD_LABELS = {{ gunluk: 'Günlük', haftalik: 'Haftalık', aylik: 'Aylık', yillik: 'Yıllık' }};
-  const riskColor = {{ 1: 'rgba(79,140,255,0.85)', 2: 'rgba(245,166,35,0.85)' }};
-  const riskColorHover = {{ 1: 'rgba(79,140,255,1)', 2: 'rgba(245,166,35,1)' }};
+  const riskColor = {{ 1: 'rgba(91,127,209,0.85)', 2: 'rgba(199,143,74,0.85)' }};
+  const riskColorHover = {{ 1: 'rgba(91,127,209,1)', 2: 'rgba(199,143,74,1)' }};
   let currentPeriod = 'gunluk';
   let sparkCharts = {{}};
 
@@ -587,28 +588,24 @@ def render_html(data, rows):
     options: {{
       responsive: true, maintainAspectRatio: false,
       scales: {{
-        x: {{ ticks: {{ color: '#8b93a7', maxRotation: 90, minRotation: 90, autoSkip: false, font: {{ size: 9 }} }}, grid: {{ color: '#2a3243' }} }},
-        y: {{ ticks: {{ color: '#8b93a7' }}, grid: {{ color: '#2a3243' }} }}
+        x: {{ ticks: {{ color: '#8f88a3', maxRotation: 90, minRotation: 90, autoSkip: false, font: {{ size: 9 }} }}, grid: {{ color: '#e3dff2' }} }},
+        y: {{ ticks: {{ color: '#8f88a3' }}, grid: {{ color: '#e3dff2' }} }}
       }},
       plugins: {{
         legend: {{ display: false }},
         tooltip: {{ callbacks: {{ afterLabel: (item) => {{
           const risks = item.chart.__risks || [];
-          const urls = item.chart.__urls || [];
           const risk = risks[item.dataIndex] ? ('Risk ' + risks[item.dataIndex] + '/7') : '';
-          const link = urls[item.dataIndex] ? 'Fon sayfası için tıklayın' : '';
-          return [risk, link].filter(Boolean);
+          return [risk, 'Tarihsel grafiği görmek için tıklayın'].filter(Boolean);
         }} }} }}
       }},
       onClick: (evt, elements, chart) => {{
         if (!elements.length) return;
-        const url = (chart.__urls || [])[elements[0].index];
-        if (url) window.open(url, '_blank', 'noopener');
+        const kod = (chart.__kods || [])[elements[0].index];
+        if (kod) window.location.href = 'fon.html?kod=' + encodeURIComponent(kod);
       }},
       onHover: (evt, elements, chart) => {{
-        const urls = chart.__urls || [];
-        const hasUrl = elements.length && urls[elements[0].index];
-        evt.native.target.style.cursor = hasUrl ? 'pointer' : 'default';
+        evt.native.target.style.cursor = elements.length ? 'pointer' : 'default';
       }}
     }}
   }});
@@ -618,7 +615,7 @@ def render_html(data, rows):
     const min = Math.min(...series), max = Math.max(...series);
     sparkCharts[canvas.dataset.kod] = new Chart(canvas, {{
       type: 'line',
-      data: {{ labels: series.map((_, i) => i), datasets: [{{ data: series, borderColor: '#4f8cff', borderWidth: 1.5, pointRadius: 0, tension: 0.3, fill: false }}] }},
+      data: {{ labels: series.map((_, i) => i), datasets: [{{ data: series, borderColor: '#5b7fd1', borderWidth: 1.5, pointRadius: 0, tension: 0.3, fill: false }}] }},
       options: {{
         responsive: false, maintainAspectRatio: false,
         scales: {{ x: {{ display: false }}, y: {{ display: false, min, max }} }},
@@ -657,10 +654,10 @@ def render_html(data, rows):
     mainChart.data.datasets[0].data = chartFunds.map(f => Math.round(f.ret * 10000) / 10000);
     mainChart.data.datasets[0].label = label + ' Getiri (%)';
     const risks = chartFunds.map(f => f.risk);
-    mainChart.data.datasets[0].backgroundColor = risks.map(r => riskColor[r] || 'rgba(139,147,167,0.7)');
-    mainChart.data.datasets[0].hoverBackgroundColor = risks.map(r => riskColorHover[r] || 'rgba(139,147,167,0.9)');
+    mainChart.data.datasets[0].backgroundColor = risks.map(r => riskColor[r] || 'rgba(143,136,163,0.7)');
+    mainChart.data.datasets[0].hoverBackgroundColor = risks.map(r => riskColorHover[r] || 'rgba(143,136,163,0.9)');
     mainChart.__risks = risks;
-    mainChart.__urls = chartFunds.map(f => f.valorUrl || '');
+    mainChart.__kods = chartFunds.map(f => f.kod);
     mainChart.update();
 
     const bySirket = {{}};
@@ -727,8 +724,8 @@ def render_karar_html(rows):
 <title>Yatırım Önerisi (AI Analiz) - TEFAS Para Piyasası Fonları</title>
 <style>
   :root {{
-    --bg: #0f1420; --card: #171d2b; --border: #2a3243; --text: #e6e9ef;
-    --muted: #8b93a7; --pos: #3ddc84; --neg: #ff5c72; --accent: #4f8cff; --warn: #f5a623;
+    --bg: #f7f5fb; --card: #ffffff; --border: #e3dff2; --text: #443f5e;
+    --muted: #8f88a3; --pos: #3f9973; --neg: #c85a72; --accent: #5b7fd1; --warn: #c78f4a;
   }}
   * {{ box-sizing: border-box; }}
   body {{
@@ -742,11 +739,11 @@ def render_karar_html(rows):
   a.back:hover {{ text-decoration: underline; }}
   .card {{
     background: var(--card); border: 1px solid var(--border); border-radius: 12px;
-    padding: 20px; margin-bottom: 20px;
+    padding: 20px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(68,63,94,0.06);
   }}
   .card h2 {{ font-size: 15px; margin: 0 0 12px 0; font-weight: 700; }}
   .warn-box {{
-    background: rgba(245,166,35,0.08); border: 1px solid var(--warn); border-radius: 10px;
+    background: rgba(199,143,74,0.14); border: 1px solid var(--warn); border-radius: 10px;
     padding: 14px 18px; margin-bottom: 20px; font-size: 13px; line-height: 1.6; color: var(--text);
   }}
   .warn-box b {{ color: var(--warn); }}
@@ -939,8 +936,8 @@ def render_karsilastir_html(rows):
 <title>Fon Karşılaştırma - TEFAS Para Piyasası Fonları</title>
 <style>
   :root {{
-    --bg: #0f1420; --card: #171d2b; --border: #2a3243; --text: #e6e9ef;
-    --muted: #8b93a7; --pos: #3ddc84; --neg: #ff5c72; --accent: #4f8cff; --warn: #f5a623;
+    --bg: #f7f5fb; --card: #ffffff; --border: #e3dff2; --text: #443f5e;
+    --muted: #8f88a3; --pos: #3f9973; --neg: #c85a72; --accent: #5b7fd1; --warn: #c78f4a;
   }}
   * {{ box-sizing: border-box; }}
   body {{
@@ -954,7 +951,7 @@ def render_karsilastir_html(rows):
   a.back:hover {{ text-decoration: underline; }}
   .card {{
     background: var(--card); border: 1px solid var(--border); border-radius: 12px;
-    padding: 20px; margin-bottom: 20px;
+    padding: 20px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(68,63,94,0.06);
   }}
   .card h2 {{ font-size: 15px; margin: 0 0 14px 0; font-weight: 700; }}
   .select-row {{ display: flex; gap: 12px; flex-wrap: wrap; }}
@@ -980,7 +977,7 @@ def render_karsilastir_html(rows):
     display: inline-block; background: var(--accent); color: #fff; font-size: 10px; font-weight: 700;
     padding: 2px 8px; border-radius: 999px; margin-top: 4px; letter-spacing: .03em;
   }}
-  td.winner, th.winner {{ background: rgba(79,140,255,0.08); }}
+  td.winner, th.winner {{ background: rgba(91,127,209,0.08); }}
   .empty-msg {{ color: var(--muted); font-size: 13px; padding: 20px 0; text-align: center; }}
   .fon-link {{ color: var(--accent); text-decoration: none; font-size: 12px; }}
   .fon-link:hover {{ text-decoration: underline; }}
@@ -1212,6 +1209,182 @@ def render_karsilastir_html(rows):
     return html
 
 
+def render_fon_detay_html(rows):
+    funds_json = json.dumps([
+        {
+            "kod": r["kod"], "ad": r["ad"], "sirket": r["sirket"], "risk": r["risk"],
+            "hist": r["hist"], "platform": r.get("platform", ""),
+            "alisValor": r.get("alis_valor", "-"), "satisValor": r.get("satis_valor", "-"),
+            "valorKaynak": r.get("valor_kaynak", ""), "valorUrl": r.get("valor_url", ""),
+        }
+        for r in rows
+    ], ensure_ascii=False)
+
+    html = f"""<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fon Grafiği - TEFAS Para Piyasası Fonları</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+  :root {{
+    --bg: #f7f5fb; --card: #ffffff; --border: #e3dff2; --text: #443f5e;
+    --muted: #8f88a3; --pos: #3f9973; --neg: #c85a72; --accent: #5b7fd1; --warn: #c78f4a;
+  }}
+  * {{ box-sizing: border-box; }}
+  body {{
+    margin: 0; padding: 32px; background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    max-width: 980px;
+  }}
+  h1 {{ font-size: 22px; margin: 0 0 4px 0; }}
+  .subtitle {{ color: var(--muted); font-size: 13px; margin-bottom: 20px; }}
+  a.back {{ color: var(--accent); font-size: 13px; text-decoration: none; }}
+  a.back:hover {{ text-decoration: underline; }}
+  .card {{
+    background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+    padding: 20px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(68,63,94,0.06);
+  }}
+  .card h2 {{ font-size: 15px; margin: 0 0 16px 0; font-weight: 700; }}
+  .summary {{ display: flex; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }}
+  .stat {{
+    background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+    padding: 14px 18px; min-width: 150px; box-shadow: 0 1px 3px rgba(68,63,94,0.06);
+  }}
+  .stat .label {{ color: var(--muted); font-size: 12px; margin-bottom: 6px; }}
+  .stat .value {{ font-size: 20px; font-weight: 600; }}
+  .pos {{ color: var(--pos); }}
+  .neg {{ color: var(--neg); }}
+  .muted {{ color: var(--muted); }}
+  .chart-wrap {{ height: 380px; }}
+  .risk-badge {{
+    display: inline-block; background: rgba(91,127,209,0.12); color: var(--accent);
+    font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 999px; margin-left: 8px;
+  }}
+  table {{ width: 100%; border-collapse: collapse; font-size: 13px; }}
+  th {{
+    text-align: left; padding: 10px 12px; color: var(--muted); font-weight: 600;
+    border-bottom: 1px solid var(--border); font-size: 11px; text-transform: uppercase; letter-spacing: .03em;
+  }}
+  td {{ padding: 10px 12px; border-bottom: 1px solid var(--border); }}
+  .num {{ text-align: right; font-variant-numeric: tabular-nums; }}
+  .fon-link {{ color: var(--accent); text-decoration: none; font-size: 12px; }}
+  .fon-link:hover {{ text-decoration: underline; }}
+  .not-found {{ color: var(--muted); font-size: 14px; }}
+  footer {{ color: var(--muted); font-size: 12px; margin-top: 24px; }}
+</style>
+</head>
+<body>
+  <a class="back" href="index.html">&larr; Rapora Dön</a>
+  <div id="content"></div>
+
+  <footer>
+    Veri kaynağı: <a href="https://www.tefas.gov.tr/tr/fon-verileri" style="color:var(--accent)">TEFAS Fon Verileri</a>.
+    Bu rapor bilgilendirme amaçlıdır, yatırım tavsiyesi değildir.
+  </footer>
+
+<script>
+  const FUNDS = {funds_json};
+
+  function parseDate(s) {{ return new Date(s + 'T00:00:00').getTime(); }}
+  function fmtDate(s) {{
+    const [y, m, d] = s.split('-');
+    return `${{d}}.${{m}}.${{y}}`;
+  }}
+  function fmtPrice(v) {{
+    return v.toLocaleString('tr-TR', {{ minimumFractionDigits: 6, maximumFractionDigits: 6 }});
+  }}
+  function fmtPct(v) {{
+    if (v === null || v === undefined || isNaN(v)) return '<span class="muted">—</span>';
+    const cls = v >= 0 ? 'pos' : 'neg';
+    const sign = v >= 0 ? '+' : '';
+    return `<span class="${{cls}}">${{sign}}${{v.toFixed(4)}}%</span>`;
+  }}
+  function computeForPeriod(hist, days) {{
+    if (!hist || hist.length < 2) return null;
+    const last = hist[hist.length - 1];
+    const targetTime = parseDate(last[0]) - days * 86400000;
+    let baseline = hist[0];
+    for (let i = hist.length - 1; i >= 0; i--) {{
+      if (parseDate(hist[i][0]) <= targetTime) {{ baseline = hist[i]; break; }}
+    }}
+    if (baseline[1] <= 0 || baseline[0] === last[0]) return null;
+    return (last[1] - baseline[1]) / baseline[1] * 100;
+  }}
+
+  const params = new URLSearchParams(location.search);
+  const kod = (params.get('kod') || '').toUpperCase();
+  const fund = FUNDS.find(f => f.kod === kod);
+  const content = document.getElementById('content');
+
+  if (!fund) {{
+    content.innerHTML = '<div class="card"><p class="not-found">Fon bulunamadı. Lütfen rapora dönüp bir fona tıklayın.</p></div>';
+  }} else {{
+    document.title = `${{fund.kod}} — ${{fund.ad}}`;
+    const last = fund.hist[fund.hist.length - 1];
+    const gunluk = computeForPeriod(fund.hist, 1);
+    const haftalik = computeForPeriod(fund.hist, 7);
+    const aylik = computeForPeriod(fund.hist, 30);
+    const yillik = computeForPeriod(fund.hist, 365);
+
+    content.innerHTML = `
+      <h1>${{fund.kod}} — ${{fund.ad}}<span class="risk-badge">Risk ${{fund.risk || '—'}}/7</span></h1>
+      <div class="subtitle">${{fund.sirket}} · Son fiyat tarihi: ${{fmtDate(last[0])}} ${{fund.valorUrl ? `· <a class="fon-link" href="${{fund.valorUrl}}" target="_blank" rel="noopener">Fonun kendi sayfası →</a>` : ''}}</div>
+
+      <div class="summary">
+        <div class="stat"><div class="label">Son Fiyat</div><div class="value">${{fmtPrice(last[1])}}</div></div>
+        <div class="stat"><div class="label">Günlük Getiri</div><div class="value">${{fmtPct(gunluk)}}</div></div>
+        <div class="stat"><div class="label">Haftalık Getiri</div><div class="value">${{fmtPct(haftalik)}}</div></div>
+        <div class="stat"><div class="label">Aylık Getiri</div><div class="value">${{fmtPct(aylik)}}</div></div>
+        <div class="stat"><div class="label">Yıllık Getiri</div><div class="value">${{fmtPct(yillik)}}</div></div>
+      </div>
+
+      <div class="card">
+        <h2>Tarihsel Fiyat Grafiği</h2>
+        <div class="chart-wrap"><canvas id="histChart"></canvas></div>
+      </div>
+
+      <div class="card">
+        <h2>Son 20 Kayıt</h2>
+        <table>
+          <thead><tr><th>Tarih</th><th style="text-align:right">Fiyat</th></tr></thead>
+          <tbody>
+            ${{fund.hist.slice(-20).slice().reverse().map(h => `<tr><td>${{fmtDate(h[0])}}</td><td class="num">${{fmtPrice(h[1])}}</td></tr>`).join('')}}
+          </tbody>
+        </table>
+      </div>
+    `;
+
+    new Chart(document.getElementById('histChart'), {{
+      type: 'line',
+      data: {{
+        labels: fund.hist.map(h => fmtDate(h[0])),
+        datasets: [{{
+          label: fund.kod, data: fund.hist.map(h => h[1]),
+          borderColor: '#5b7fd1', backgroundColor: 'rgba(91,127,209,0.12)',
+          borderWidth: 2, pointRadius: 0, tension: 0.25, fill: true,
+        }}]
+      }},
+      options: {{
+        responsive: true, maintainAspectRatio: false,
+        scales: {{
+          x: {{ position: 'bottom', ticks: {{ color: '#8f88a3', maxRotation: 0, autoSkip: true, maxTicksLimit: 10, font: {{ size: 10 }} }}, grid: {{ display: false }} }},
+          y: {{ ticks: {{ color: '#8f88a3' }}, grid: {{ color: '#e3dff2' }} }}
+        }},
+        plugins: {{
+          legend: {{ display: false }},
+          tooltip: {{ callbacks: {{ title: (items) => items[0] ? items[0].label : '' }} }}
+        }}
+      }}
+    }});
+  }}
+</script>
+</body>
+</html>"""
+    return html
+
+
 def build(date_str=None, prices=None):
     """Load data, optionally add a new day's prices, regenerate the report."""
     data = load_data()
@@ -1229,4 +1402,7 @@ def build(date_str=None, prices=None):
     karsilastir_html = render_karsilastir_html(rows)
     with open(KARSILASTIR_FILE, "w", encoding="utf-8") as f:
         f.write(karsilastir_html)
+    fon_detay_html = render_fon_detay_html(rows)
+    with open(FON_DETAY_FILE, "w", encoding="utf-8") as f:
+        f.write(fon_detay_html)
     return rows

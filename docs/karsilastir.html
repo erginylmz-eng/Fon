@@ -6,8 +6,8 @@
 <title>Fon Karşılaştırma - TEFAS Para Piyasası Fonları</title>
 <style>
   :root {
-    --bg: #0f1420; --card: #171d2b; --border: #2a3243; --text: #e6e9ef;
-    --muted: #8b93a7; --pos: #3ddc84; --neg: #ff5c72; --accent: #4f8cff; --warn: #f5a623;
+    --bg: #f7f5fb; --card: #ffffff; --border: #e3dff2; --text: #443f5e;
+    --muted: #8f88a3; --pos: #3f9973; --neg: #c85a72; --accent: #5b7fd1; --warn: #c78f4a;
   }
   * { box-sizing: border-box; }
   body {
@@ -21,7 +21,7 @@
   a.back:hover { text-decoration: underline; }
   .card {
     background: var(--card); border: 1px solid var(--border); border-radius: 12px;
-    padding: 20px; margin-bottom: 20px;
+    padding: 20px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(68,63,94,0.06);
   }
   .card h2 { font-size: 15px; margin: 0 0 14px 0; font-weight: 700; }
   .select-row { display: flex; gap: 12px; flex-wrap: wrap; }
@@ -47,7 +47,7 @@
     display: inline-block; background: var(--accent); color: #fff; font-size: 10px; font-weight: 700;
     padding: 2px 8px; border-radius: 999px; margin-top: 4px; letter-spacing: .03em;
   }
-  td.winner, th.winner { background: rgba(79,140,255,0.08); }
+  td.winner, th.winner { background: rgba(91,127,209,0.08); }
   .empty-msg { color: var(--muted); font-size: 13px; padding: 20px 0; text-align: center; }
   .fon-link { color: var(--accent); text-decoration: none; font-size: 12px; }
   .fon-link:hover { text-decoration: underline; }
