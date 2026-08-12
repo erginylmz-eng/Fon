@@ -11,6 +11,7 @@ REPORT_FILE = os.path.join(BASE_DIR, "docs", "index.html")
 KARAR_FILE = os.path.join(BASE_DIR, "docs", "karar.html")
 KARSILASTIR_FILE = os.path.join(BASE_DIR, "docs", "karsilastir.html")
 FON_DETAY_FILE = os.path.join(BASE_DIR, "docs", "fon.html")
+DISAAKTAR_FILE = os.path.join(BASE_DIR, "docs", "disaaktar.html")
 VALOR_FILE = os.path.join(BASE_DIR, "data", "fon_valor.csv")
 
 
@@ -178,7 +179,7 @@ def render_html(data, rows):
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>TEFAS Para Piyasası Fonları (Firma Bazlı) - Günlük Getiri Raporu</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-datalabels/2.2.0/chartjs-plugin-datalabels.min.js"></script>
 <style>
   :root {{
     --bg: #f7f5fb; --card: #ffffff; --border: #e3dff2; --text: #443f5e;
@@ -281,25 +282,7 @@ def render_html(data, rows):
   <div style="margin-bottom:20px; display:flex; gap:10px; flex-wrap:wrap;">
     <a href="karar.html" class="btn" style="text-decoration:none; display:inline-block;">Yatırım Önerisi (AI Analiz)</a>
     <a href="karsilastir.html" class="btn" style="text-decoration:none; display:inline-block; background:transparent; border:1px solid var(--border); color:var(--text);">3 Fon Karşılaştır</a>
-  </div>
-
-  <div class="card">
-    <h2>Veriyi Şimdi Çek</h2>
-    <div class="btn-row">
-      <button class="btn" onclick="runNow()">Şimdi Çek</button>
-      <button class="btn secondary" onclick="resetGithubConfig()">GitHub Bağlantısını Sıfırla</button>
-    </div>
-    <div id="runNowStatus" class="help-text"></div>
-    <div class="help-text">
-      Bu sistemde otomatik/zamanlanmış güncelleme yoktur — veri sadece bu butona bastığınızda çekilir.
-      Butona bastığınızda, sistemde kayıtlı en son tarihten bugüne kadar olan tüm eksik günler tek tek
-      (gün gün) çekilip işlenir; örneğin son veri 5 gün önceyse, o 5 günün hepsi sırayla çekilir.
-      Bunun için bir GitHub <b>Personal Access Token</b> gerekir (sadece bu tarayıcınızda saklanır,
-      kimseyle paylaşılmaz, doğrudan GitHub'ın kendi sunucusuna gönderilir). Repo → Settings →
-      Developer settings → Personal access tokens → Fine-grained tokens → sadece bu repo,
-      izin: <b>Actions: Read and write</b> (başka izin gerekmez). İlk "Şimdi Çek" tıklamanızda GitHub
-      kullanıcı adı / repo adı / token sorulacak.
-    </div>
+    <a href="disaaktar.html" class="btn" style="text-decoration:none; display:inline-block; background:transparent; border:1px solid var(--border); color:var(--text);">Veri Dışa Aktar (Excel)</a>
   </div>
 
   <div class="toc">
@@ -321,30 +304,6 @@ def render_html(data, rows):
   </div>
 
   <div class="card">
-    <h2>Veri Dışa Aktar (Excel)</h2>
-    <div class="select-row">
-      <div class="select-col" style="flex:2">
-        <label>Fonlar (Ctrl/Cmd ile birden fazla seçebilirsiniz)</label>
-        <select id="exportFunds" multiple size="8"></select>
-      </div>
-      <div class="select-col">
-        <label>Başlangıç Tarihi</label>
-        <input type="date" id="exportStart">
-      </div>
-      <div class="select-col">
-        <label>Bitiş Tarihi</label>
-        <input type="date" id="exportEnd">
-      </div>
-    </div>
-    <div class="btn-row">
-      <button class="btn secondary" onclick="selectAllExportFunds()">Tümünü Seç</button>
-      <button class="btn secondary" onclick="clearExportFunds()">Seçimi Temizle</button>
-      <button class="btn" onclick="exportExcel()">Excel'e Aktar</button>
-    </div>
-    <div id="exportStatus" class="help-text"></div>
-  </div>
-
-  <div class="card">
     <h2 id="chartTitle">Tüm Fonlar — Günlük Getiri Karşılaştırması</h2>
     <div class="legend">
       <span><span class="swatch" style="background:#5b7fd1"></span>Risk 1/7</span>
@@ -358,7 +317,7 @@ def render_html(data, rows):
   <footer>
     Veri kaynağı: <a href="https://www.tefas.gov.tr/tr/fon-verileri" style="color:var(--accent)">TEFAS Fon Verileri</a>.
     Bu rapor bilgilendirme amaçlıdır, yatırım tavsiyesi değildir. Veri otomatik güncellenmez —
-    "Şimdi Çek" butonuyla elle güncellenir.
+    manuel olarak güncellenip yayınlanır.
   </footer>
 
 <script>
@@ -378,7 +337,7 @@ def render_html(data, rows):
     const el = document.getElementById('updateStatus');
     if (!SON_TARIH) {{
       el.className = 'update-status stale';
-      el.innerHTML = '<span class="dot"></span> Henüz veri çekilmemiş — aşağıdaki "Şimdi Çek" butonuna basın.';
+      el.innerHTML = '<span class="dot"></span> Henüz veri çekilmemiş.';
       return;
     }}
     const now = new Date();
@@ -401,143 +360,16 @@ def render_html(data, rows):
         d.setDate(d.getDate() + 1);
       }}
       const gunIfadesi = missing === 1 ? '1 iş günü' : `${{missing}} iş günü`;
-      msg = `Son güncelleme ${{SON_TARIH}} (${{gunIfadesi}} eksik) — güncellemek için aşağıdaki "Şimdi Çek" butonuna basın`;
+      msg = `Son güncelleme ${{SON_TARIH}} (${{gunIfadesi}} eksik) — güncellemek için Claude'a "veriyi güncelle" yazın`;
     }}
     el.className = 'update-status ' + cls;
     el.innerHTML = `<span class="dot"></span> ${{msg}}`;
   }})();
 
-  // ---- Veriyi şimdi çek (GitHub Actions workflow_dispatch tetikleyici) ----
-  const WORKFLOW_FILE = 'daily-update.yml';
-
-  function getGithubConfig(forcePrompt) {{
-    let owner = localStorage.getItem('tefas_gh_owner') || '';
-    let repo = localStorage.getItem('tefas_gh_repo') || '';
-    let token = localStorage.getItem('tefas_gh_token') || '';
-    if (forcePrompt || !owner || !repo || !token) {{
-      owner = prompt('GitHub kullanıcı adınız:', owner) || owner;
-      repo = prompt('Repo adı:', repo) || repo;
-      token = prompt('GitHub Personal Access Token (sadece bu tarayıcıda saklanır):', '') || token;
-      if (owner) localStorage.setItem('tefas_gh_owner', owner);
-      if (repo) localStorage.setItem('tefas_gh_repo', repo);
-      if (token) localStorage.setItem('tefas_gh_token', token);
-    }}
-    return {{ owner, repo, token }};
-  }}
-
-  function resetGithubConfig() {{
-    localStorage.removeItem('tefas_gh_owner');
-    localStorage.removeItem('tefas_gh_repo');
-    localStorage.removeItem('tefas_gh_token');
-    getGithubConfig(true);
-  }}
-
-  async function runNow() {{
-    const status = document.getElementById('runNowStatus');
-    const {{ owner, repo, token }} = getGithubConfig(false);
-    if (!owner || !repo || !token) {{
-      status.innerHTML = '<span class="neg">GitHub bilgileri eksik.</span>';
-      return;
-    }}
-    status.textContent = 'Çalıştırma tetikleniyor...';
-    try {{
-      const res = await fetch(
-        `https://api.github.com/repos/${{owner}}/${{repo}}/actions/workflows/${{WORKFLOW_FILE}}/dispatches`,
-        {{
-          method: 'POST',
-          headers: {{ Authorization: `token ${{token}}`, 'Content-Type': 'application/json' }},
-          body: JSON.stringify({{ ref: 'main' }}),
-        }}
-      );
-      if (res.status === 204) {{
-        status.innerHTML = '<span class="pos">Tetiklendi.</span> Eksik olan tüm günler tek tek çekilecek, bu birkaç dakika sürebilir. Actions sekmesinden ilerlemeyi takip edebilir, bittiğinde bu sayfayı yenileyebilirsiniz.';
-      }} else {{
-        throw new Error('HTTP ' + res.status);
-      }}
-    }} catch (e) {{
-      status.innerHTML = `<span class="neg">Hata: ${{e.message}}</span>`;
-    }}
-  }}
-
   // ---- Dönem bazlı (Günlük/Haftalık/Aylık/Yıllık) dinamik rapor ----
   const FUNDS = {funds_json};
   const SIRKET_ORDER = {sirket_order_json};
 
-  // ---- Excel'e veri dışa aktarma ----
-  const sortedFundsForExport = FUNDS.slice().sort((a, b) => (a.sirket + a.kod).localeCompare(b.sirket + b.kod, 'tr'));
-  const exportBySirket = {{}};
-  sortedFundsForExport.forEach(f => {{ (exportBySirket[f.sirket] = exportBySirket[f.sirket] || []).push(f); }});
-
-  function populateExportSelect() {{
-    const sel = document.getElementById('exportFunds');
-    sel.innerHTML = '';
-    Object.keys(exportBySirket).forEach(sirket => {{
-      const grp = document.createElement('optgroup');
-      grp.label = sirket;
-      exportBySirket[sirket].forEach(f => {{
-        const opt = document.createElement('option');
-        opt.value = f.kod;
-        opt.textContent = `${{f.kod}} — ${{f.ad}}`;
-        grp.appendChild(opt);
-      }});
-      sel.appendChild(grp);
-    }});
-  }}
-  populateExportSelect();
-
-  function selectAllExportFunds() {{
-    document.querySelectorAll('#exportFunds option').forEach(o => o.selected = true);
-  }}
-  function clearExportFunds() {{
-    document.querySelectorAll('#exportFunds option').forEach(o => o.selected = false);
-  }}
-
-  (function setDefaultExportDates() {{
-    let minD = null, maxD = null;
-    FUNDS.forEach(f => f.hist.forEach(([d]) => {{
-      if (!minD || d < minD) minD = d;
-      if (!maxD || d > maxD) maxD = d;
-    }}));
-    if (minD && maxD) {{
-      const startEl = document.getElementById('exportStart');
-      const endEl = document.getElementById('exportEnd');
-      startEl.min = minD; startEl.max = maxD; startEl.value = minD;
-      endEl.min = minD; endEl.max = maxD; endEl.value = maxD;
-    }}
-  }})();
-
-  function exportExcel() {{
-    const status = document.getElementById('exportStatus');
-    const kods = Array.from(document.getElementById('exportFunds').selectedOptions).map(o => o.value);
-    const start = document.getElementById('exportStart').value;
-    const end = document.getElementById('exportEnd').value;
-    if (!kods.length) {{ status.innerHTML = '<span class="neg">En az bir fon seçin.</span>'; return; }}
-    if (!start || !end || start > end) {{ status.innerHTML = '<span class="neg">Geçerli bir tarih aralığı seçin.</span>'; return; }}
-
-    const selFunds = FUNDS.filter(f => kods.includes(f.kod));
-    const dateSet = new Set();
-    selFunds.forEach(f => f.hist.forEach(([d]) => {{ if (d >= start && d <= end) dateSet.add(d); }}));
-    const dates = Array.from(dateSet).sort();
-    if (!dates.length) {{ status.innerHTML = '<span class="neg">Seçilen aralıkta veri bulunamadı.</span>'; return; }}
-
-    const header = ['Tarih', ...selFunds.map(f => `${{f.kod}} (${{f.sirket}})`)];
-    const aoa = [header];
-    dates.forEach(d => {{
-      const row = [d];
-      selFunds.forEach(f => {{
-        const entry = f.hist.find(h => h[0] === d);
-        row.push(entry ? entry[1] : '');
-      }});
-      aoa.push(row);
-    }});
-
-    const ws = XLSX.utils.aoa_to_sheet(aoa);
-    ws['!cols'] = header.map(() => ({{ wch: 18 }}));
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Fon Verileri');
-    XLSX.writeFile(wb, `tefas_fon_verileri_${{start}}_${{end}}.xlsx`);
-    status.innerHTML = `<span class="pos">${{dates.length}} günlük veri, ${{selFunds.length}} fon için indirildi.</span>`;
-  }}
   const PERIOD_DAYS = {{ gunluk: 1, haftalik: 7, aylik: 30, yillik: 365 }};
   const PERIOD_LABELS = {{ gunluk: 'Günlük', haftalik: 'Haftalık', aylik: 'Aylık', yillik: 'Yıllık' }};
   const riskColor = {{ 1: 'rgba(91,127,209,0.85)', 2: 'rgba(199,143,74,0.85)' }};
@@ -582,14 +414,18 @@ def render_html(data, rows):
     return b.ret - a.ret;
   }}
 
+  if (window.ChartDataLabels) Chart.register(window.ChartDataLabels);
+
   const mainChart = new Chart(document.getElementById('returnChart'), {{
     type: 'bar',
-    data: {{ labels: [], datasets: [{{ label: 'Getiri (%)', data: [], backgroundColor: [], hoverBackgroundColor: [], borderRadius: 4 }}] }},
+    data: {{ labels: [], datasets: [{{ label: 'Getiri (%)', data: [], backgroundColor: [], hoverBackgroundColor: [], borderRadius: 4, barPercentage: 0.7, categoryPercentage: 0.85 }}] }},
     options: {{
+      indexAxis: 'y',
       responsive: true, maintainAspectRatio: false,
+      layout: {{ padding: {{ right: 46 }} }},
       scales: {{
-        x: {{ ticks: {{ color: '#8f88a3', maxRotation: 90, minRotation: 90, autoSkip: false, font: {{ size: 9 }} }}, grid: {{ color: '#e3dff2' }} }},
-        y: {{ ticks: {{ color: '#8f88a3' }}, grid: {{ color: '#e3dff2' }} }}
+        x: {{ ticks: {{ color: '#8f88a3', font: {{ size: 10 }}, callback: (v) => (v >= 0 ? '+' : '') + v.toFixed(3) + '%' }}, grid: {{ color: '#e3dff2' }} }},
+        y: {{ ticks: {{ color: '#8f88a3', autoSkip: false, font: {{ size: 10 }} }}, grid: {{ display: false }} }}
       }},
       plugins: {{
         legend: {{ display: false }},
@@ -597,7 +433,11 @@ def render_html(data, rows):
           const risks = item.chart.__risks || [];
           const risk = risks[item.dataIndex] ? ('Risk ' + risks[item.dataIndex] + '/7') : '';
           return [risk, 'Tarihsel grafiği görmek için tıklayın'].filter(Boolean);
-        }} }} }}
+        }} }} }},
+        datalabels: {{
+          anchor: 'end', align: 'end', color: '#443f5e', font: {{ size: 10, weight: '600' }},
+          formatter: (v) => (v >= 0 ? '+' : '') + v.toFixed(4) + '%'
+        }}
       }},
       onClick: (evt, elements, chart) => {{
         if (!elements.length) return;
@@ -650,14 +490,27 @@ def render_html(data, rows):
     document.getElementById('chartTitle').textContent = 'Tüm Fonlar — ' + label + ' Getiri Karşılaştırması';
 
     const chartFunds = sortedAll.filter(f => f.ret !== null);
-    mainChart.data.labels = chartFunds.map(f => `${{f.sirket}} (${{f.kod}})`);
-    mainChart.data.datasets[0].data = chartFunds.map(f => Math.round(f.ret * 10000) / 10000);
+    mainChart.data.labels = chartFunds.map(f => `${{f.kod}} — ${{f.sirket}}`);
+    const retData = chartFunds.map(f => Math.round(f.ret * 10000) / 10000);
+    mainChart.data.datasets[0].data = retData;
     mainChart.data.datasets[0].label = label + ' Getiri (%)';
     const risks = chartFunds.map(f => f.risk);
     mainChart.data.datasets[0].backgroundColor = risks.map(r => riskColor[r] || 'rgba(143,136,163,0.7)');
     mainChart.data.datasets[0].hoverBackgroundColor = risks.map(r => riskColorHover[r] || 'rgba(143,136,163,0.9)');
     mainChart.__risks = risks;
     mainChart.__kods = chartFunds.map(f => f.kod);
+
+    // Degerler birbirine cok yakin oldugundan (ör. gunluk getiriler), ekseni
+    // veri araligina gore yakinlastir ki farklar gozle gorulebilsin.
+    if (retData.length) {{
+      const minRet = Math.min(...retData), maxRet = Math.max(...retData);
+      const pad = Math.max((maxRet - minRet) * 0.18, 0.003);
+      mainChart.options.scales.x.min = minRet - pad;
+      mainChart.options.scales.x.max = maxRet + pad;
+    }}
+    // Her fon icin okunabilir bir satir yuksekligi ayir (yatay bar grafik).
+    document.getElementById('returnChart').parentElement.style.height =
+      Math.max(360, chartFunds.length * 22 + 40) + 'px';
     mainChart.update();
 
     const bySirket = {{}};
@@ -1385,6 +1238,171 @@ def render_fon_detay_html(rows):
     return html
 
 
+def render_disaaktar_html(rows):
+    funds_json = json.dumps([
+        {"kod": r["kod"], "ad": r["ad"], "sirket": r["sirket"], "hist": r["hist"]}
+        for r in rows
+    ], ensure_ascii=False)
+
+    html = f"""<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Veri Dışa Aktar (Excel) - TEFAS Para Piyasası Fonları</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root {{
+    --bg: #f7f5fb; --card: #ffffff; --border: #e3dff2; --text: #443f5e;
+    --muted: #8f88a3; --pos: #3f9973; --neg: #c85a72; --accent: #5b7fd1; --warn: #c78f4a;
+  }}
+  * {{ box-sizing: border-box; }}
+  body {{
+    margin: 0; padding: 32px; background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    max-width: 900px;
+  }}
+  h1 {{ font-size: 22px; margin: 0 0 4px 0; }}
+  .subtitle {{ color: var(--muted); font-size: 13px; margin-bottom: 20px; }}
+  a.back {{ color: var(--accent); font-size: 13px; text-decoration: none; }}
+  a.back:hover {{ text-decoration: underline; }}
+  .card {{
+    background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+    padding: 20px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(68,63,94,0.06);
+  }}
+  .card h2 {{ font-size: 15px; margin: 0 0 16px 0; font-weight: 700; }}
+  .select-row {{ display: flex; gap: 12px; flex-wrap: wrap; }}
+  .select-col {{ flex: 1; min-width: 200px; }}
+  .select-col label {{ display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; }}
+  select, input[type="date"] {{
+    width: 100%; background: var(--bg); color: var(--text); border: 1px solid var(--border);
+    border-radius: 8px; padding: 9px 12px; font-size: 13px; font-family: inherit;
+  }}
+  select[multiple] {{ height: auto; }}
+  .btn {{
+    background: var(--accent); color: #fff; border: none; border-radius: 8px;
+    padding: 9px 16px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit;
+  }}
+  .btn:hover {{ opacity: .9; }}
+  .btn.secondary {{ background: transparent; border: 1px solid var(--border); color: var(--text); }}
+  .btn-row {{ display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }}
+  .help-text {{ font-size: 12px; color: var(--muted); margin-top: 10px; line-height: 1.6; }}
+  .pos {{ color: var(--pos); }}
+  .neg {{ color: var(--neg); }}
+</style>
+</head>
+<body>
+  <a class="back" href="index.html">&larr; Rapora Dön</a>
+  <h1>Veri Dışa Aktar (Excel)</h1>
+  <div class="subtitle">Fonları ve tarih aralığını seçip Excel dosyası olarak indirin.</div>
+
+  <div class="card">
+    <h2>Dışa Aktarma Ayarları</h2>
+    <div class="select-row">
+      <div class="select-col" style="flex:2">
+        <label>Fonlar (Ctrl/Cmd ile birden fazla seçebilirsiniz)</label>
+        <select id="exportFunds" multiple size="12"></select>
+      </div>
+      <div class="select-col">
+        <label>Başlangıç Tarihi</label>
+        <input type="date" id="exportStart">
+      </div>
+      <div class="select-col">
+        <label>Bitiş Tarihi</label>
+        <input type="date" id="exportEnd">
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn secondary" onclick="selectAllExportFunds()">Tümünü Seç</button>
+      <button class="btn secondary" onclick="clearExportFunds()">Seçimi Temizle</button>
+      <button class="btn" onclick="exportExcel()">Excel'e Aktar</button>
+    </div>
+    <div id="exportStatus" class="help-text"></div>
+  </div>
+
+<script>
+  const FUNDS = {funds_json};
+
+  const sortedFundsForExport = FUNDS.slice().sort((a, b) => (a.sirket + a.kod).localeCompare(b.sirket + b.kod, 'tr'));
+  const exportBySirket = {{}};
+  sortedFundsForExport.forEach(f => {{ (exportBySirket[f.sirket] = exportBySirket[f.sirket] || []).push(f); }});
+
+  function populateExportSelect() {{
+    const sel = document.getElementById('exportFunds');
+    sel.innerHTML = '';
+    Object.keys(exportBySirket).forEach(sirket => {{
+      const grp = document.createElement('optgroup');
+      grp.label = sirket;
+      exportBySirket[sirket].forEach(f => {{
+        const opt = document.createElement('option');
+        opt.value = f.kod;
+        opt.textContent = `${{f.kod}} — ${{f.ad}}`;
+        grp.appendChild(opt);
+      }});
+      sel.appendChild(grp);
+    }});
+  }}
+  populateExportSelect();
+
+  function selectAllExportFunds() {{
+    document.querySelectorAll('#exportFunds option').forEach(o => o.selected = true);
+  }}
+  function clearExportFunds() {{
+    document.querySelectorAll('#exportFunds option').forEach(o => o.selected = false);
+  }}
+
+  (function setDefaultExportDates() {{
+    let minD = null, maxD = null;
+    FUNDS.forEach(f => f.hist.forEach(([d]) => {{
+      if (!minD || d < minD) minD = d;
+      if (!maxD || d > maxD) maxD = d;
+    }}));
+    if (minD && maxD) {{
+      const startEl = document.getElementById('exportStart');
+      const endEl = document.getElementById('exportEnd');
+      startEl.min = minD; startEl.max = maxD; startEl.value = minD;
+      endEl.min = minD; endEl.max = maxD; endEl.value = maxD;
+    }}
+  }})();
+
+  function exportExcel() {{
+    const status = document.getElementById('exportStatus');
+    const kods = Array.from(document.getElementById('exportFunds').selectedOptions).map(o => o.value);
+    const start = document.getElementById('exportStart').value;
+    const end = document.getElementById('exportEnd').value;
+    if (!kods.length) {{ status.innerHTML = '<span class="neg">En az bir fon seçin.</span>'; return; }}
+    if (!start || !end || start > end) {{ status.innerHTML = '<span class="neg">Geçerli bir tarih aralığı seçin.</span>'; return; }}
+
+    const selFunds = FUNDS.filter(f => kods.includes(f.kod));
+    const dateSet = new Set();
+    selFunds.forEach(f => f.hist.forEach(([d]) => {{ if (d >= start && d <= end) dateSet.add(d); }}));
+    const dates = Array.from(dateSet).sort();
+    if (!dates.length) {{ status.innerHTML = '<span class="neg">Seçilen aralıkta veri bulunamadı.</span>'; return; }}
+
+    const header = ['Tarih', ...selFunds.map(f => `${{f.kod}} (${{f.sirket}})`)];
+    const aoa = [header];
+    dates.forEach(d => {{
+      const row = [d];
+      selFunds.forEach(f => {{
+        const entry = f.hist.find(h => h[0] === d);
+        row.push(entry ? entry[1] : '');
+      }});
+      aoa.push(row);
+    }});
+
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    ws['!cols'] = header.map(() => ({{ wch: 18 }}));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Fon Verileri');
+    XLSX.writeFile(wb, `tefas_fon_verileri_${{start}}_${{end}}.xlsx`);
+    status.innerHTML = `<span class="pos">${{dates.length}} günlük veri, ${{selFunds.length}} fon için indirildi.</span>`;
+  }}
+</script>
+</body>
+</html>"""
+    return html
+
+
 def build(date_str=None, prices=None):
     """Load data, optionally add a new day's prices, regenerate the report."""
     data = load_data()
@@ -1405,4 +1423,7 @@ def build(date_str=None, prices=None):
     fon_detay_html = render_fon_detay_html(rows)
     with open(FON_DETAY_FILE, "w", encoding="utf-8") as f:
         f.write(fon_detay_html)
+    disaaktar_html = render_disaaktar_html(rows)
+    with open(DISAAKTAR_FILE, "w", encoding="utf-8") as f:
+        f.write(disaaktar_html)
     return rows
