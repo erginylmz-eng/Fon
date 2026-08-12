@@ -150,8 +150,38 @@ async def fetch_prices_for_date(date_str, fund_codes):
         f"&startDate={date_str}&endDate={date_str}"
     )
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True)
-        context = await browser.new_context(user_agent=USER_AGENT, locale="tr-TR")
+        # "Gizli mod": TEFAS'in korumasi, TEFAS.gov.tr'nin normal bir tarayicidan
+        # mi yoksa Playwright/Selenium gibi bir otomasyon aracindan mi geldigini
+        # ayirt edebiliyor gibi gorunuyor (gercek tarayicidan sorunsuz yukleniyor,
+        # Playwright'tan konumdan bagimsiz olarak zaman asimina ugruyor). Bu
+        # ayarlar en yaygin otomasyon izlerini (navigator.webdriver bayragi vb.)
+        # gizlemeye calisir.
+        browser = await p.chromium.launch(
+            headless=True,
+            args=[
+                "--disable-blink-features=AutomationControlled",
+                "--disable-features=IsolateOrigins,site-per-process",
+            ],
+        )
+        context = await browser.new_context(
+            user_agent=USER_AGENT,
+            locale="tr-TR",
+            viewport={"width": 1366, "height": 768},
+        )
+        await context.add_init_script(
+            """
+            Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+            window.chrome = window.chrome || { runtime: {} };
+            Object.defineProperty(navigator, 'languages', { get: () => ['tr-TR', 'tr', 'en-US', 'en'] });
+            Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
+            const originalQuery = window.navigator.permissions.query;
+            window.navigator.permissions.query = (parameters) => (
+                parameters.name === 'notifications' ?
+                    Promise.resolve({ state: Notification.permission }) :
+                    originalQuery(parameters)
+            );
+            """
+        )
         page = await context.new_page()
         page.set_default_timeout(60000)
         try:
