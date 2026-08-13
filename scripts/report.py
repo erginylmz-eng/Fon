@@ -88,8 +88,13 @@ def compute_rows(data):
             "tarih": last["tarih"],
             "fiyat": last["fiyat"],
             "gunluk_getiri": daily_return,
+            "buyukluk": last.get("buyukluk"),
+            "kisi": last.get("kisi"),
             "seri": [h["fiyat"] for h in recent],
-            "hist": [[h["tarih"], h["fiyat"]] for h in hist],
+            # [tarih, fiyat, buyukluk, kisi] - buyukluk/kisi sadece yeni
+            # kayitlarda var (gecmis kayitlarda None). Mevcut JS kodu sadece
+            # indeks 0/1'i kullandigi icin bu geriye donuk uyumludur.
+            "hist": [[h["tarih"], h["fiyat"], h.get("buyukluk"), h.get("kisi")] for h in hist],
             "platform": valor.get("platform", ""),
             "alis_valor": valor.get("alis_valor", "-"),
             "satis_valor": valor.get("satis_valor", "-"),
@@ -97,6 +102,17 @@ def compute_rows(data):
             "valor_url": valor.get("url", ""),
         })
     return rows
+
+
+def annualized_return(pct, days):
+    """Belirli bir donemdeki getiri yuzdesini (pct) yillik esdegerine cevirir.
+    fetch_and_build.py'deki ayni isimli fonksiyonla ayni formulu kullanir."""
+    if pct is None or days <= 0:
+        return None
+    try:
+        return (((1 + pct / 100.0) ** (365.0 / days)) - 1) * 100.0
+    except (OverflowError, ValueError):
+        return None
 
 
 def fmt_pct(v):
@@ -182,6 +198,9 @@ def render_html(data, rows):
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>TEFAS Para Piyasası Fonları (Firma Bazlı) - Günlük Getiri Raporu</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#5b7fd1">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-datalabels/2.2.0/chartjs-plugin-datalabels.min.js"></script>
 <style>
@@ -276,6 +295,15 @@ def render_html(data, rows):
   .card.accordion.open .acc-arrow {{ transform: rotate(180deg); color: var(--accent); }}
   .table-scroll {{ overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 0 -4px; }}
   .table-scroll table {{ min-width: 680px; }}
+  tr.best-row td {{ background: rgba(63,153,115,0.08); }}
+  tr.worst-row td {{ background: rgba(200,90,114,0.07); }}
+  .rank-badge {{
+    display: inline-block; font-size: 10px; font-weight: 700; padding: 1px 7px;
+    border-radius: 999px; margin-left: 8px; vertical-align: middle;
+  }}
+  .rank-badge.best {{ background: rgba(63,153,115,0.15); color: var(--pos); }}
+  .rank-badge.worst {{ background: rgba(200,90,114,0.13); color: var(--neg); }}
+  td.num[title] {{ cursor: help; }}
   @media (max-width: 640px) {{
     body {{ padding: 16px; }}
     h1 {{ font-size: 18px; }}
@@ -289,6 +317,7 @@ def render_html(data, rows):
     .period-btn {{ padding: 8px 12px; font-size: 12px; }}
     .toc a {{ padding: 5px 10px; font-size: 11px; }}
     .chart-wrap {{ height: 300px; }}
+    .select-col {{ min-width: 100%; }}
   }}
 </style>
 </head>
@@ -320,6 +349,24 @@ def render_html(data, rows):
     <div class="stat"><div class="label">Toplam Fon</div><div class="value">{n_funds}</div></div>
     <div class="stat"><div class="label" id="statAvgLabel">Ortalama Günlük Getiri</div><div class="value" id="statAvg">—</div></div>
     <div class="stat"><div class="label">En Yüksek Getiri</div><div class="value" id="statTop">—</div></div>
+    <div class="stat"><div class="label">En Düşük Getiri</div><div class="value" id="statBottom">—</div></div>
+  </div>
+
+  <div class="card" style="padding:16px 20px;">
+    <div class="select-row">
+      <div class="select-col">
+        <label>Fon Ara (kod veya ad)</label>
+        <input type="text" id="searchInput" placeholder="Örn. AAL veya Ziraat">
+      </div>
+      <div class="select-col" style="max-width:220px;">
+        <label>Risk Seviyesi</label>
+        <select id="riskFilter">
+          <option value="">Tümü</option>
+          <option value="1">1/7</option>
+          <option value="2">2/7</option>
+        </select>
+      </div>
+    </div>
   </div>
 
   <div class="card">
@@ -367,7 +414,6 @@ def render_html(data, rows):
       cls = 'fresh';
       msg = `Veri güncel — son güncelleme ${{SON_TARIH}}`;
     }} else {{
-      cls = 'stale';
       // Eksik is gunu sayisini, fetch_and_build.py'deki business_days_between
       // ile ayni mantikla say (haftasonlari haric).
       let missing = 0;
@@ -378,8 +424,14 @@ def render_html(data, rows):
         if (d.getDay() !== 0 && d.getDay() !== 6) missing++;
         d.setDate(d.getDate() + 1);
       }}
+      // 1 is gunu eksikse (henuz o gunun otomasyonu calismamis olabilir)
+      // turuncu "stale"; 2+ is gunu eksikse otomasyonda gercek bir sorun
+      // olma ihtimali yuksek, kirmizi "old" ile daha belirgin uyar.
+      cls = missing >= 2 ? 'old' : 'stale';
       const gunIfadesi = missing === 1 ? '1 iş günü' : `${{missing}} iş günü`;
-      msg = `Son güncelleme ${{SON_TARIH}} (${{gunIfadesi}} eksik) — otomatik güncelleme birkaç saat içinde beklenmelidir`;
+      msg = cls === 'old'
+        ? `Veri ${{gunIfadesi}} eksik (son güncelleme ${{SON_TARIH}}) — otomatik güncelleme bir süredir çalışmamış olabilir, kontrol edin`
+        : `Son güncelleme ${{SON_TARIH}} (${{gunIfadesi}} eksik) — otomatik güncelleme birkaç saat içinde beklenmelidir`;
     }}
     el.className = 'update-status ' + cls;
     el.innerHTML = `<span class="dot"></span> ${{msg}}`;
@@ -430,6 +482,14 @@ def render_html(data, rows):
     if (a.ret === null) return 1;
     if (b.ret === null) return -1;
     return b.ret - a.ret;
+  }}
+  function annualized(pct, days) {{
+    if (pct === null || pct === undefined || isNaN(pct) || days <= 0) return null;
+    return (Math.pow(1 + pct / 100, 365 / days) - 1) * 100;
+  }}
+  function annTitle(pct, days) {{
+    const a = annualized(pct, days);
+    return a !== null ? `Yıllıklandırılmış: ${{a >= 0 ? '+' : ''}}${{a.toFixed(2)}}%` : '';
   }}
 
   if (window.ChartDataLabels) Chart.register(window.ChartDataLabels);
@@ -487,10 +547,13 @@ def render_html(data, rows):
     const avg = withRet.length ? withRet.reduce((a, b) => a + b.ret, 0) / withRet.length : null;
     const sortedAll = computed.slice().sort(sortByRet);
     const top = sortedAll.length && sortedAll[0].ret !== null ? sortedAll[0] : null;
+    const bottomCandidates = withRet.slice().sort(sortByRet);
+    const bottom = bottomCandidates.length ? bottomCandidates[bottomCandidates.length - 1] : null;
 
     document.getElementById('statAvgLabel').textContent = 'Ortalama ' + label + ' Getiri';
     document.getElementById('statAvg').textContent = avg !== null ? (avg >= 0 ? '+' : '') + avg.toFixed(4) + '%' : '—';
     document.getElementById('statTop').textContent = top ? (top.kod + ' · ' + top.sirket) : '—';
+    document.getElementById('statBottom').textContent = bottom ? (bottom.kod + ' · ' + bottom.sirket) : '—';
     document.getElementById('chartTitle').textContent = 'Tüm Fonlar — ' + label + ' Getiri Karşılaştırması';
 
     const chartFunds = sortedAll.filter(f => f.ret !== null);
@@ -524,24 +587,67 @@ def render_html(data, rows):
       const rows = (bySirket[sirket] || []).slice().sort(sortByRet);
       const tbody = document.getElementById('tbody-' + slug(sirket));
       if (!tbody) return;
-      tbody.innerHTML = rows.map(r => `
-        <tr>
-          <td class="code">${{r.valorUrl ? `<a href="${{r.valorUrl}}" target="_blank" rel="noopener" class="code-link" title="Fonun kendi sitesindeki sayfasını aç">${{r.kod}}</a>` : r.kod}}</td>
+      const withRetS = rows.filter(r => r.ret !== null);
+      const bestKod = withRetS.length ? withRetS[0].kod : null;
+      const worstKod = withRetS.length > 1 ? withRetS[withRetS.length - 1].kod : null;
+      tbody.innerHTML = rows.map(r => {{
+        let rowCls = '';
+        let badge = '';
+        if (r.kod === bestKod && r.ret > 0) {{ rowCls = ' class="best-row"'; badge = '<span class="rank-badge best">EN İYİ</span>'; }}
+        else if (r.kod === worstKod && r.ret < 0) {{ rowCls = ' class="worst-row"'; badge = '<span class="rank-badge worst">EN KÖTÜ</span>'; }}
+        return `
+        <tr${{rowCls}}>
+          <td class="code">${{r.valorUrl ? `<a href="${{r.valorUrl}}" target="_blank" rel="noopener" class="code-link" title="Fonun kendi sitesindeki sayfasını aç">${{r.kod}}</a>` : r.kod}}${{badge}}</td>
           <td class="name">${{r.ad}}</td>
           <td class="num muted">${{r.risk ? r.risk + '/7' : '—'}}</td>
           <td class="num">${{fmtPrice(r.fiyat)}}</td>
-          <td class="num">${{fmtPct(r.retG)}}</td>
-          <td class="num">${{fmtPct(r.retH)}}</td>
-          <td class="num">${{fmtPct(r.retA)}}</td>
+          <td class="num" title="${{annTitle(r.retG, 1)}}">${{fmtPct(r.retG)}}</td>
+          <td class="num" title="${{annTitle(r.retH, 7)}}">${{fmtPct(r.retH)}}</td>
+          <td class="num" title="${{annTitle(r.retA, 30)}}">${{fmtPct(r.retA)}}</td>
           <td class="num">${{fmtPct(r.retY)}}</td>
           <td class="num muted" title="${{(r.platform || '') + (r.valorKaynak ? ' · Kaynak: ' + r.valorKaynak : '')}}">${{r.alisValor === '-' ? '—' : (r.alisValor + ' / ' + r.satisValor)}}</td>
-        </tr>`).join('');
-      const withRetS = rows.filter(r => r.ret !== null);
+        </tr>`;
+      }}).join('');
       const avgS = withRetS.length ? withRetS.reduce((a, b) => a + b.ret, 0) / withRetS.length : null;
       const meta = document.getElementById('meta-' + slug(sirket));
       if (meta) meta.textContent = `· ${{rows.length}} fon · ortalama ${{avgS !== null ? avgS.toFixed(4) + '%' : '—'}}`;
     }});
+
+    applyFilter();
   }}
+
+  // ---- Arama / risk filtresi ----
+  function applyFilter() {{
+    const searchEl = document.getElementById('searchInput');
+    const riskEl = document.getElementById('riskFilter');
+    if (!searchEl || !riskEl) return;
+    const q = searchEl.value.trim().toLowerCase();
+    const riskVal = riskEl.value;
+    const active = !!q || !!riskVal;
+    document.querySelectorAll('.card.accordion').forEach((card, idx) => {{
+      const tbody = card.querySelector('tbody');
+      if (!tbody) return;
+      let anyVisible = false;
+      Array.from(tbody.children).forEach(tr => {{
+        const kod = (tr.children[0].textContent || '').toLowerCase();
+        const ad = (tr.children[1].textContent || '').toLowerCase();
+        const risk = (tr.children[2].textContent || '').trim();
+        const matchesText = !q || kod.includes(q) || ad.includes(q);
+        const matchesRisk = !riskVal || risk.indexOf(riskVal) === 0;
+        const visible = matchesText && matchesRisk;
+        tr.style.display = visible ? '' : 'none';
+        if (visible) anyVisible = true;
+      }});
+      card.style.display = anyVisible ? '' : 'none';
+      if (active) {{
+        card.classList.toggle('open', anyVisible);
+      }} else {{
+        card.classList.toggle('open', idx === 0);
+      }}
+    }});
+  }}
+  document.getElementById('searchInput').addEventListener('input', applyFilter);
+  document.getElementById('riskFilter').addEventListener('change', applyFilter);
 
   document.querySelectorAll('.period-btn').forEach(btn => {{
     btn.addEventListener('click', () => {{ currentPeriod = btn.dataset.period; render(); }});
@@ -557,6 +663,10 @@ def render_html(data, rows):
   }});
 
   render();
+
+  if ('serviceWorker' in navigator) {{
+    window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {{}}));
+  }}
 </script>
 </body>
 </html>"""
@@ -575,6 +685,9 @@ def render_karar_html(rows):
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Yatırım Önerisi (AI Analiz) - TEFAS Para Piyasası Fonları</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#5b7fd1">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
 <style>
   :root {{
     --bg: #f7f5fb; --card: #ffffff; --border: #e3dff2; --text: #443f5e;
@@ -772,6 +885,10 @@ Düz metin olarak yaz (markdown/yıldız kullanma), paragraflar arasında boş s
       loading.classList.remove('show');
     }}
   }}
+
+  if ('serviceWorker' in navigator) {{
+    window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {{}}));
+  }}
 </script>
 </body>
 </html>"""
@@ -794,6 +911,9 @@ def render_karsilastir_html(rows):
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Fon Karşılaştırma - TEFAS Para Piyasası Fonları</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#5b7fd1">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
 <style>
   :root {{
     --bg: #f7f5fb; --card: #ffffff; --border: #e3dff2; --text: #443f5e;
@@ -1074,6 +1194,10 @@ def render_karsilastir_html(rows):
   }}
 
   render();
+
+  if ('serviceWorker' in navigator) {{
+    window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {{}}));
+  }}
 </script>
 </body>
 </html>"""
@@ -1087,6 +1211,7 @@ def render_fon_detay_html(rows):
             "hist": r["hist"], "platform": r.get("platform", ""),
             "alisValor": r.get("alis_valor", "-"), "satisValor": r.get("satis_valor", "-"),
             "valorKaynak": r.get("valor_kaynak", ""), "valorUrl": r.get("valor_url", ""),
+            "buyukluk": r.get("buyukluk"), "kisi": r.get("kisi"),
         }
         for r in rows
     ], ensure_ascii=False)
@@ -1097,6 +1222,9 @@ def render_fon_detay_html(rows):
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Fon Grafiği - TEFAS Para Piyasası Fonları</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#5b7fd1">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <style>
   :root {{
@@ -1143,6 +1271,7 @@ def render_fon_detay_html(rows):
   .fon-link {{ color: var(--accent); text-decoration: none; font-size: 12px; }}
   .fon-link:hover {{ text-decoration: underline; }}
   .not-found {{ color: var(--muted); font-size: 14px; }}
+  .help-note {{ color: var(--muted); font-size: 12px; margin: -10px 0 20px 0; line-height: 1.6; }}
   footer {{ color: var(--muted); font-size: 12px; margin-top: 24px; }}
   @media (max-width: 640px) {{
     body {{ padding: 16px; }}
@@ -1165,6 +1294,7 @@ def render_fon_detay_html(rows):
     Veri kaynağı: <a href="https://www.tefas.gov.tr/tr/fon-verileri" style="color:var(--accent)">TEFAS Fon Verileri</a>.
     Bu rapor bilgilendirme amaçlıdır, yatırım tavsiyesi değildir.
   </footer>
+  <script>if ('serviceWorker' in navigator) {{ window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {{}})); }}</script>
 
 <script>
   const FUNDS = {funds_json};
@@ -1194,6 +1324,13 @@ def render_fon_detay_html(rows):
     if (baseline[1] <= 0 || baseline[0] === last[0]) return null;
     return (last[1] - baseline[1]) / baseline[1] * 100;
   }}
+  function annualized(pct, days) {{
+    if (pct === null || pct === undefined || isNaN(pct) || days <= 0) return null;
+    return (Math.pow(1 + pct / 100, 365 / days) - 1) * 100;
+  }}
+  function fmtInt(v) {{
+    return v.toLocaleString('tr-TR');
+  }}
 
   const params = new URLSearchParams(location.search);
   const kod = (params.get('kod') || '').toUpperCase();
@@ -1209,6 +1346,15 @@ def render_fon_detay_html(rows):
     const haftalik = computeForPeriod(fund.hist, 7);
     const aylik = computeForPeriod(fund.hist, 30);
     const yillik = computeForPeriod(fund.hist, 365);
+    const gunlukYil = annualized(gunluk, 1);
+    const haftalikYil = annualized(haftalik, 7);
+    const aylikYil = annualized(aylik, 30);
+    const buyukluk = last[2];
+    const kisi = last[3];
+
+    const boyutStats = (buyukluk || kisi) ? `
+        ${{buyukluk ? `<div class="stat"><div class="label">Fon Büyüklüğü (TL)</div><div class="value">${{fmtInt(Math.round(buyukluk))}}</div></div>` : ''}}
+        ${{kisi ? `<div class="stat"><div class="label">Yatırımcı Sayısı</div><div class="value">${{fmtInt(kisi)}}</div></div>` : ''}}` : '';
 
     content.innerHTML = `
       <h1>${{fund.kod}} — ${{fund.ad}}<span class="risk-badge">Risk ${{fund.risk || '—'}}/7</span></h1>
@@ -1216,11 +1362,13 @@ def render_fon_detay_html(rows):
 
       <div class="summary">
         <div class="stat"><div class="label">Son Fiyat</div><div class="value">${{fmtPrice(last[1])}}</div></div>
-        <div class="stat"><div class="label">Günlük Getiri</div><div class="value">${{fmtPct(gunluk)}}</div></div>
-        <div class="stat"><div class="label">Haftalık Getiri</div><div class="value">${{fmtPct(haftalik)}}</div></div>
-        <div class="stat"><div class="label">Aylık Getiri</div><div class="value">${{fmtPct(aylik)}}</div></div>
+        <div class="stat" title="${{gunlukYil !== null ? 'Yıllıklandırılmış: ' + (gunlukYil >= 0 ? '+' : '') + gunlukYil.toFixed(2) + '%' : ''}}"><div class="label">Günlük Getiri</div><div class="value">${{fmtPct(gunluk)}}</div></div>
+        <div class="stat" title="${{haftalikYil !== null ? 'Yıllıklandırılmış: ' + (haftalikYil >= 0 ? '+' : '') + haftalikYil.toFixed(2) + '%' : ''}}"><div class="label">Haftalık Getiri</div><div class="value">${{fmtPct(haftalik)}}</div></div>
+        <div class="stat" title="${{aylikYil !== null ? 'Yıllıklandırılmış: ' + (aylikYil >= 0 ? '+' : '') + aylikYil.toFixed(2) + '%' : ''}}"><div class="label">Aylık Getiri</div><div class="value">${{fmtPct(aylik)}}</div></div>
         <div class="stat"><div class="label">Yıllık Getiri</div><div class="value">${{fmtPct(yillik)}}</div></div>
+        ${{boyutStats}}
       </div>
+      <div class="help-note">Fare imlecinizi Günlük/Haftalık/Aylık getiri kutucuklarının üzerinde tutarsanız, o oranın yıllıklandırılmış (bileşik) eşdeğerini görürsünüz.</div>
 
       <div class="card">
         <h2>Tarihsel Fiyat Grafiği</h2>
@@ -1279,6 +1427,9 @@ def render_disaaktar_html(rows):
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Veri Dışa Aktar (Excel) - TEFAS Para Piyasası Fonları</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#5b7fd1">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root {{
@@ -1352,6 +1503,7 @@ def render_disaaktar_html(rows):
       <button class="btn secondary" onclick="selectAllExportFunds()">Tümünü Seç</button>
       <button class="btn secondary" onclick="clearExportFunds()">Seçimi Temizle</button>
       <button class="btn" onclick="exportExcel()">Excel'e Aktar</button>
+      <button class="btn secondary" onclick="exportCsv()">CSV'ye Aktar</button>
     </div>
     <div id="exportStatus" class="help-text"></div>
   </div>
@@ -1432,6 +1584,52 @@ def render_disaaktar_html(rows):
     XLSX.utils.book_append_sheet(wb, ws, 'Fon Verileri');
     XLSX.writeFile(wb, `tefas_fon_verileri_${{start}}_${{end}}.xlsx`);
     status.innerHTML = `<span class="pos">${{dates.length}} günlük veri, ${{selFunds.length}} fon için indirildi.</span>`;
+  }}
+
+  function exportCsv() {{
+    const status = document.getElementById('exportStatus');
+    const kods = Array.from(document.getElementById('exportFunds').selectedOptions).map(o => o.value);
+    const start = document.getElementById('exportStart').value;
+    const end = document.getElementById('exportEnd').value;
+    if (!kods.length) {{ status.innerHTML = '<span class="neg">En az bir fon seçin.</span>'; return; }}
+    if (!start || !end || start > end) {{ status.innerHTML = '<span class="neg">Geçerli bir tarih aralığı seçin.</span>'; return; }}
+
+    const selFunds = FUNDS.filter(f => kods.includes(f.kod));
+    const dateSet = new Set();
+    selFunds.forEach(f => f.hist.forEach(([d]) => {{ if (d >= start && d <= end) dateSet.add(d); }}));
+    const dates = Array.from(dateSet).sort();
+    if (!dates.length) {{ status.innerHTML = '<span class="neg">Seçilen aralıkta veri bulunamadı.</span>'; return; }}
+
+    const header = ['Tarih', ...selFunds.map(f => `${{f.kod}} (${{f.sirket}})`)];
+    const csvEsc = (v) => {{
+      const s = String(v);
+      return /[",\\n;]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+    }};
+    const lines = [header.map(csvEsc).join(';')];
+    dates.forEach(d => {{
+      const row = [d];
+      selFunds.forEach(f => {{
+        const entry = f.hist.find(h => h[0] === d);
+        row.push(entry ? String(entry[1]).replace('.', ',') : '');
+      }});
+      lines.push(row.map(csvEsc).join(';'));
+    }});
+
+    const csvContent = '\\ufeff' + lines.join('\\r\\n');
+    const blob = new Blob([csvContent], {{ type: 'text/csv;charset=utf-8;' }});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `tefas_fon_verileri_${{start}}_${{end}}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    status.innerHTML = `<span class="pos">${{dates.length}} günlük veri, ${{selFunds.length}} fon için CSV olarak indirildi.</span>`;
+  }}
+
+  if ('serviceWorker' in navigator) {{
+    window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {{}}));
   }}
 </script>
 </body>

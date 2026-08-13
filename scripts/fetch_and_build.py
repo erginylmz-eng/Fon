@@ -51,6 +51,12 @@ import report  # noqa: E402
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FON_LISTESI_FILE = os.path.join(BASE_DIR, "data", "fon_listesi.csv")
 
+TELEGRAM_API = "https://api.telegram.org"
+# TEFAS'ta bir gunde %3'ten fazla fiyat degisimi para piyasasi fonlari icin
+# alisilmadik sayilir (veri hatasi / yanlis ayristirma olasiligina isaret
+# edebilir). Sadece bir UYARI olarak loglanir, veri yine de kaydedilir.
+ANOMALI_ESIK_YUZDE = 3.0
+
 INFO_URL = "https://www.tefas.gov.tr/api/funds/fonGnlBlgSiraliGetir"
 API_HEADERS = {
     "Accept": "*/*",
@@ -90,6 +96,48 @@ def previous_business_day(d):
     while d.weekday() >= 5:  # 5=Cumartesi, 6=Pazar
         d -= timedelta(days=1)
     return d
+
+
+def current_or_previous_business_day(d):
+    """Bugun hafta ici ise bugunu, degilse (hafta sonu) en son gecen hafta ici
+    gunu dondurur. TEFAS o gunun fiyatini genelde sabah 10:00 TR'ye kadar
+    yayinliyor (canli test edildi); bu yuzden hedef tarihi artik "dun" yerine
+    "bugun" olarak deniyoruz. TEFAS henuz yayinlamamissa fetch_range zaten o
+    gun icin bos sonuc dondurur ve main() bu gunu sessizce atlar, bir sonraki
+    calistirmada tekrar denenir."""
+    dd = d
+    while dd.weekday() >= 5:
+        dd -= timedelta(days=1)
+    return dd
+
+
+def send_telegram(text):
+    """TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID ortam degiskenleri tanimliysa
+    Telegram'a bildirim gonderir. Tanimli degilse sessizce hicbir sey yapmaz
+    (ozellik devre disi demektir, aktivasyon kilavuzuna bakin)."""
+    token = os.environ.get("TELEGRAM_BOT_TOKEN")
+    chat_id = os.environ.get("TELEGRAM_CHAT_ID")
+    if not token or not chat_id:
+        return
+    try:
+        requests.post(
+            f"{TELEGRAM_API}/bot{token}/sendMessage",
+            data={"chat_id": chat_id, "text": text, "parse_mode": "HTML"},
+            timeout=15,
+        )
+    except Exception as e:  # noqa: BLE001 - bildirim hatasi ana akisi bozmamali
+        print(f"  Telegram bildirimi gonderilemedi: {e}")
+
+
+def annualized_return(pct, days):
+    """Belirli bir donemdeki getiri yuzdesini (pct) yillik esdegerine cevirir.
+    Bilesik faiz mantigiyla: ((1 + pct/100) ** (365/days) - 1) * 100."""
+    if pct is None or days <= 0:
+        return None
+    try:
+        return (((1 + pct / 100.0) ** (365.0 / days)) - 1) * 100.0
+    except (OverflowError, ValueError):
+        return None
 
 
 def business_days_between(start_exclusive, end_inclusive):
@@ -182,8 +230,10 @@ def fetch_range(start_date, end_date):
             tarih = row.get("tarih")
             fiyat = row.get("fiyat")
             ad = row.get("fonUnvan")
+            buyukluk = row.get("portfoyBuyukluk")
+            kisi = row.get("kisiSayisi")
             if kod and tarih and fiyat is not None:
-                out.setdefault(kod, {})[tarih] = (float(fiyat), ad)
+                out.setdefault(kod, {})[tarih] = (float(fiyat), ad, buyukluk, kisi)
 
         cur = chunk_end + timedelta(days=1)
     return out
@@ -206,7 +256,10 @@ def main():
         all_dates = [h["tarih"] for f in data["fonlar"].values() for h in f.get("gecmis", [])]
         last_known = max(all_dates) if all_dates else ""
 
-    end_date = previous_business_day(datetime.utcnow() + timedelta(hours=3)).date()  # TR saati (UTC+3)
+    # TR saati (UTC+3). TEFAS o gunun fiyatini genelde sabah 10:00'a kadar
+    # yayinladigi icin artik "bugunu" hedefliyoruz (eskiden "dun" idi); TEFAS
+    # henuz yayinlamamissa asagida ilgili gun sessizce atlanir.
+    end_date = current_or_previous_business_day((datetime.utcnow() + timedelta(hours=3)).date())
 
     if last_known:
         last_known_date = datetime.strptime(last_known, "%Y-%m-%d").date()
@@ -228,13 +281,19 @@ def main():
     try:
         fetched = fetch_range(target_dates[0], target_dates[-1])
     except TefasAPIError as e:
+        hata_mesaji = (
+            f"⚠️ <b>TEFAS Veri Güncelleme HATASI</b>\n\n{e}\n\n"
+            f"Rapor güncellenmedi. Detaylar için GitHub Actions çalıştırma kaydına bakın."
+        )
         print(f"\nHATA: {e}")
         print("Rapor guncellenmedi.")
+        send_telegram(hata_mesaji)
         sys.exit(1)
 
     target_date_strs = [d.strftime("%Y-%m-%d") for d in target_dates]
     succeeded_dates = []
     empty_dates = []
+    anomaliler = []  # (date_str, kod, onceki_fiyat, yeni_fiyat, degisim_yuzde)
 
     for date_str in target_date_strs:
         prices_today = {}
@@ -244,7 +303,7 @@ def main():
                 prices_today[kod] = entry[date_str]
 
         if not prices_today:
-            print(f"{date_str} icin veri yok (resmi tatil vb. olabilir), atlaniyor.")
+            print(f"{date_str} icin veri yok (resmi tatil, ya da TEFAS henuz yayinlamamis olabilir), atlaniyor.")
             empty_dates.append(date_str)
             continue
 
@@ -252,15 +311,33 @@ def main():
         if missing:
             print(f"UYARI ({date_str}): su fonlar icin fiyat bulunamadi: {sorted(missing)}")
 
-        for kod, (price, ad) in prices_today.items():
+        for kod, (price, ad, buyukluk, kisi) in prices_today.items():
             meta = fon_listesi.get(kod, {"sirket": "Diğer", "risk": None})
             fentry = data["fonlar"].setdefault(kod, {"ad": ad or kod, "gecmis": []})
             fentry["ad"] = ad or fentry.get("ad") or kod
             fentry["sirket"] = meta["sirket"]
             fentry["risk"] = meta["risk"]
             hist = fentry["gecmis"]
+
+            # Veri dogrulama: bir onceki kayitli gune gore anormal (>%3)
+            # fiyat sicramasi varsa uyari olarak biriktir (veri yine de
+            # kaydedilir, sadece bildirimle isaretlenir).
+            onceki = [h for h in hist if h["tarih"] < date_str]
+            if onceki:
+                onceki_fiyat = onceki[-1]["fiyat"]
+                if onceki_fiyat > 0:
+                    degisim = (price - onceki_fiyat) / onceki_fiyat * 100
+                    if abs(degisim) >= ANOMALI_ESIK_YUZDE:
+                        anomaliler.append((date_str, kod, onceki_fiyat, price, degisim))
+                        print(f"  UYARI: {kod} icin {date_str} fiyati %{degisim:.2f} degisti (anormal olabilir).")
+
             hist[:] = [h for h in hist if h["tarih"] != date_str]
-            hist.append({"tarih": date_str, "fiyat": price})
+            yeni_kayit = {"tarih": date_str, "fiyat": price}
+            if buyukluk is not None:
+                yeni_kayit["buyukluk"] = buyukluk
+            if kisi is not None:
+                yeni_kayit["kisi"] = kisi
+            hist.append(yeni_kayit)
             hist.sort(key=lambda h: h["tarih"])
 
         data["son_guncelleme"] = date_str
@@ -268,7 +345,7 @@ def main():
         succeeded_dates.append(date_str)
 
     if not succeeded_dates:
-        print("\nHicbir gun icin veri bulunamadi (hepsi tatil olabilir, ya da bir sorun var). Rapor guncellenmedi.")
+        print("\nHicbir gun icin veri bulunamadi (hepsi tatil olabilir, ya da TEFAS bugunku fiyati henuz yayinlamamis olabilir). Rapor guncellenmedi.")
         return
 
     print(f"\nBasariyla islenen gunler ({len(succeeded_dates)}): {succeeded_dates}")
@@ -283,6 +360,25 @@ def main():
     for r in sorted(rows, key=lambda r: (r["sirket"], -(r["gunluk_getiri"] or -999))):
         gr = f"{r['gunluk_getiri']:.4f}%" if r["gunluk_getiri"] is not None else "—"
         print(f"  [{r['sirket']:22s}] {r['kod']:5s} {gr:>10s}  {r['fiyat']:.6f}")
+
+    # ---- Basari bildirimi (Telegram, sadece secret'lar tanimliysa) ----
+    with_return = [r for r in rows if r.get("gunluk_getiri") is not None]
+    top3 = sorted(with_return, key=lambda r: -r["gunluk_getiri"])[:3]
+    bottom3 = sorted(with_return, key=lambda r: r["gunluk_getiri"])[:3]
+    lines = [
+        f"✅ <b>TEFAS verisi güncellendi</b> ({data['son_guncelleme']})",
+        f"{len(rows)} fon işlendi.",
+    ]
+    if top3:
+        lines.append("\n<b>En iyi 3:</b>")
+        lines += [f"  {r['kod']} ({r['sirket']}): {r['gunluk_getiri']:+.4f}%" for r in top3]
+    if bottom3:
+        lines.append("\n<b>En kötü 3:</b>")
+        lines += [f"  {r['kod']} ({r['sirket']}): {r['gunluk_getiri']:+.4f}%" for r in bottom3]
+    if anomaliler:
+        lines.append(f"\n⚠️ {len(anomaliler)} fonda anormal (≥%{ANOMALI_ESIK_YUZDE:g}) fiyat değişimi tespit edildi:")
+        lines += [f"  {kod} ({d}): {onc:.6f} → {yeni:.6f} ({deg:+.2f}%)" for d, kod, onc, yeni, deg in anomaliler[:10]]
+    send_telegram("\n".join(lines))
 
 
 if __name__ == "__main__":

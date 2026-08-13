@@ -1,0 +1,31 @@
+name: Testler
+
+# Her push ve pull request'te scripts/ altindaki mantigi dogrulayan hizli
+# birim testlerini calistirir. Veri cekmez, GitHub'a hicbir sey pushlamaz.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch: {}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Repoyu al
+        uses: actions/checkout@v4
+
+      - name: Python kur
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Bağımlılıkları kur
+        run: pip install -r requirements-dev.txt
+
+      - name: pytest çalıştır
+        run: pytest -v
+
+      - name: report.build() ile HTML üretimini doğrula
+        run: python -c "import sys; sys.path.insert(0, 'scripts'); import report; report.build(); print('report.build() basarili')"
