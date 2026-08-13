@@ -11,7 +11,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-datalabels/2.2.0/chartjs-plugin-datalabels.min.js"></script>
 <style>
   :root {
-    --bg: #f7f5fb; --card: #ffffff; --border: #e3dff2; --text: #443f5e;
+    --bg: #eeeaf6; --card: #ffffff; --border: #ded8ef; --text: #443f5e;
     --muted: #8f88a3; --pos: #3f9973; --neg: #c85a72; --accent: #5b7fd1; --warn: #c78f4a;
   }
   * { box-sizing: border-box; }
@@ -24,13 +24,13 @@
   .summary { display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
   .stat {
     background: var(--card); border: 1px solid var(--border); border-radius: 10px;
-    padding: 14px 18px; min-width: 150px; box-shadow: 0 1px 3px rgba(68,63,94,0.06);
+    padding: 14px 18px; min-width: 150px; box-shadow: 0 2px 7px rgba(68,63,94,0.10);
   }
   .stat .label { color: var(--muted); font-size: 12px; margin-bottom: 6px; }
   .stat .value { font-size: 20px; font-weight: 600; }
   .card {
     background: var(--card); border: 1px solid var(--border); border-radius: 12px;
-    padding: 20px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(68,63,94,0.06);
+    padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 7px rgba(68,63,94,0.10);
   }
   .card h2 { font-size: 15px; margin: 0 0 16px 0; color: var(--text); font-weight: 700; }
   .card h2 .muted { color: var(--muted); font-weight: 500; font-size: 13px; }
@@ -52,6 +52,8 @@
   .muted { color: var(--muted); }
   footer { color: var(--muted); font-size: 12px; margin-top: 24px; }
   .chart-wrap { height: 360px; }
+  .section-card { padding: 18px 20px; }
+  .section-card > *:last-child { margin-bottom: 0 !important; }
   .toc { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 24px; }
   .toc a {
     padding: 6px 12px; border-radius: 8px; text-decoration: none; font-size: 12px; font-weight: 600;
@@ -139,26 +141,32 @@
     <a href="disaaktar.html" class="btn" style="text-decoration:none; display:inline-block; background:transparent; border:1px solid var(--border); color:var(--text);">Veri Dışa Aktar (Excel)</a>
   </div>
 
-  <div class="toc">
-    <a href="#Ziraat-Portföy">Ziraat Portföy</a><a href="#İş-Portföy">İş Portföy</a><a href="#Ak-Portföy">Ak Portföy</a><a href="#Garanti-BBVA-Portföy">Garanti BBVA Portföy</a><a href="#Yapı-Kredi-Portföy">Yapı Kredi Portföy</a><a href="#Deniz-Portföy">Deniz Portföy</a><a href="#QNB-Finans-Portföy">QNB Finans Portföy</a><a href="#TEB-Portföy">TEB Portföy</a>
+  <div class="card section-card">
+    <h2>Portföy Yönetim Firmaları</h2>
+    <div class="toc">
+      <a href="#Ziraat-Portföy">Ziraat Portföy</a><a href="#İş-Portföy">İş Portföy</a><a href="#Ak-Portföy">Ak Portföy</a><a href="#Garanti-BBVA-Portföy">Garanti BBVA Portföy</a><a href="#Yapı-Kredi-Portföy">Yapı Kredi Portföy</a><a href="#Deniz-Portföy">Deniz Portföy</a><a href="#QNB-Finans-Portföy">QNB Finans Portföy</a><a href="#TEB-Portföy">TEB Portföy</a>
+    </div>
   </div>
 
-  <div class="period-row">
-    <button class="period-btn" data-period="gunluk">Günlük</button>
-    <button class="period-btn" data-period="haftalik">Haftalık</button>
-    <button class="period-btn" data-period="aylik">Aylık</button>
-    <button class="period-btn" data-period="yillik">Yıllık</button>
+  <div class="card section-card">
+    <h2>Veri Analizi</h2>
+    <div class="period-row">
+      <button class="period-btn" data-period="gunluk">Günlük</button>
+      <button class="period-btn" data-period="haftalik">Haftalık</button>
+      <button class="period-btn" data-period="aylik">Aylık</button>
+      <button class="period-btn" data-period="yillik">Yıllık</button>
+    </div>
+    <div class="summary">
+      <div class="stat"><div class="label">Firma Sayısı</div><div class="value">8</div></div>
+      <div class="stat"><div class="label">Toplam Fon</div><div class="value">34</div></div>
+      <div class="stat"><div class="label" id="statAvgLabel">Ortalama Günlük Getiri</div><div class="value" id="statAvg">—</div></div>
+      <div class="stat"><div class="label">En Yüksek Getiri</div><div class="value" id="statTop">—</div></div>
+      <div class="stat"><div class="label">En Düşük Getiri</div><div class="value" id="statBottom">—</div></div>
+    </div>
   </div>
 
-  <div class="summary">
-    <div class="stat"><div class="label">Firma Sayısı</div><div class="value">8</div></div>
-    <div class="stat"><div class="label">Toplam Fon</div><div class="value">34</div></div>
-    <div class="stat"><div class="label" id="statAvgLabel">Ortalama Günlük Getiri</div><div class="value" id="statAvg">—</div></div>
-    <div class="stat"><div class="label">En Yüksek Getiri</div><div class="value" id="statTop">—</div></div>
-    <div class="stat"><div class="label">En Düşük Getiri</div><div class="value" id="statBottom">—</div></div>
-  </div>
-
-  <div class="card" style="padding:16px 20px;">
+  <div class="card section-card">
+    <h2>Filtre</h2>
     <div class="select-row">
       <div class="select-col">
         <label>Fon Ara (kod veya ad)</label>
